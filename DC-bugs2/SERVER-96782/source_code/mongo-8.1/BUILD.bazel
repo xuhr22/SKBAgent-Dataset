@@ -1,0 +1,273 @@
+load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@aspect_rules_js//npm:defs.bzl", "npm_link_package")
+load("//bazel/install_rules:install_rules.bzl", "mongo_install")
+load("//bazel/toolchains:mongo_toolchain.bzl", "setup_mongo_toolchain_aliases")
+load("//bazel/config:render_template.bzl", "render_template")
+load("@npm//:eslint/package_json.bzl", eslint_bin = "bin")
+load("//bazel:mongo_js_rules.bzl", "mongo_js_library")
+load("@npm//:prettier/package_json.bzl", prettier = "bin")
+load("@aspect_bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
+load("@aspect_rules_lint//format:defs.bzl", "format_multirun", "format_test")
+load("//bazel/install_rules:install_rules.bzl", "TEST_TAGS")
+
+package(
+    default_visibility = ["//visibility:public"],
+)
+
+exports_files([
+    ".prettierrc",
+    "pyproject.toml",
+    "poetry.lock",
+    "codeowners-validator",
+])
+
+npm_link_all_packages(name = "node_modules")
+
+npm_link_package(
+    name = "node_modules/eslint-plugin-mongodb",
+    src = "//buildscripts/eslint-plugin-mongodb:npm_package",
+)
+
+mongo_js_library(
+    name = "eslintrc",
+    srcs = ["eslint.config.mjs"],
+    deps = [
+        ":node_modules/@eslint/eslintrc",
+        ":node_modules/@eslint/js",
+        ":node_modules/eslint-plugin-mongodb",
+        ":node_modules/globals",
+    ],
+)
+
+eslint_bin.eslint_binary(
+    name = "eslint",
+    data = [
+        "//:eslintrc",
+    ],
+)
+
+prettier.prettier_binary(
+    name = "prettier",
+    # Include this js_library and its dependencies in the runfiles (runtime dependencies)
+    data = ["//:.prettierrc"],
+    # Allow the binary to be run outside bazel
+    # See more details about this by commenting this out and running `bazel run //:format`
+    env = {"BAZEL_BINDIR": "."},
+    fixed_args = [
+        # `require` statements in the config file will be resolved relative to its location
+        # Therefore to make it hermetic, prettier must be pointed at the copy of the config file
+        # in the runfiles folder rather than the one in the source folder.
+        "--config=\"$$JS_BINARY__RUNFILES\"/$(rlocationpath //:.prettierrc)",
+        # default log level is "log" which spams on success
+        # https://prettier.io/docs/en/cli.html#--log-level
+        # NB: prettier 2 names this loglevel, in prettier 3 it's renamed log-level, see
+        # https://prettier.io/blog/2023/07/05/3.0.0.html#cli-1
+        "--log-level=warn",
+        # Speed this up a little bit with caching
+        "--cache",
+    ],
+)
+
+alias(
+    name = "format",
+    actual = "//bazel/format:rules_lint_format_wrapper",
+)
+
+alias(
+    name = "lint",
+    actual = "//bazel:lint",
+)
+
+alias(
+    name = "codeowners",
+    actual = "//buildscripts:codeowners",
+)
+
+setup_mongo_toolchain_aliases()
+
+render_template(
+    name = "clang_tidy_config",
+    srcs = [
+        ".clang-tidy.in",
+        "//buildscripts:clang_tidy_config_gen.py",
+    ],
+    cmd = [
+        "$(location //buildscripts:clang_tidy_config_gen.py)",
+        "--input=$(location .clang-tidy.in)",
+        "--output=$(location .clang-tidy)",
+    ],
+    output = ".clang-tidy",
+)
+
+render_template(
+    name = "clang_tidy_config_strict",
+    srcs = [
+        ".clang-tidy.in",
+        "//buildscripts:clang_tidy_config_gen.py",
+    ],
+    cmd = [
+        "$(location //buildscripts:clang_tidy_config_gen.py)",
+        "--input=$(location .clang-tidy.in)",
+        "--output=$(location .clang-tidy.strict)",
+        "--warnings-as-errors",
+    ],
+    output = ".clang-tidy.strict",
+)
+
+genrule(
+    name = "compiledb",
+    srcs = ["compile_commands.json"],
+    outs = ["compile_commands_done"],
+    cmd = "echo noop > $(location :compile_commands_done)",
+)
+
+mongo_install(
+    name = "wiredtiger",
+    srcs = [
+        "//src/third_party/wiredtiger:wt",
+    ],
+)
+
+mongo_install(
+    name = "mongod",
+    srcs = [
+        "//src/mongo/db:mongod",
+    ],
+)
+
+mongo_install(
+    name = "mongos",
+    srcs = [
+        "//src/mongo/s:mongos",
+    ],
+)
+
+mongo_install(
+    name = "mongo",
+    srcs = [
+        "//src/mongo/shell:mongo",
+    ],
+)
+
+mongo_install(
+    name = "core",
+    srcs = [],
+    deps = [
+        "mongod",
+        "mongos",
+    ],
+)
+
+mongo_install(
+    name = "devcore",
+    srcs = [],
+    deps = [
+        "mongo",
+        "mongod",
+        "mongos",
+    ],
+)
+
+mongo_install(
+    name = "mongotest",
+    srcs = [
+        "//src/mongo/db/query/query_tester:mongotest",
+    ],
+)
+
+copy_to_directory(
+    name = "mongot_folder",
+    srcs = select({
+        "//bazel/config:include_mongot_enabled": ["@mongot_localdev//:mongot_binaries"],
+        "//conditions:default": [],
+    }),
+    out = "mongot-localdev",
+    include_external_repositories = ["mongot_localdev"],
+    tags = [
+        "local",
+        "no-cache",
+    ],
+)
+
+mongo_install(
+    name = "dist-test",
+    srcs = [
+        "//src/mongo/db:mongod",
+        "//src/mongo/db:mongotrafficreader",
+        "//src/mongo/db/query/optimizer:optimizer_gdb_test_program",
+        "//src/mongo/db/query/query_tester:mongotest",
+        "//src/mongo/db/query/search/mongotmock",
+        "//src/mongo/db/storage/key_string:ksdecode",
+        "//src/mongo/s:mongos",
+        "//src/mongo/shell:mongo",
+        "//src/mongo/tools/mongobridge_tool:mongobridge",
+        "//src/mongo/util:pretty_printer_test_program",
+        "//src/third_party/wiredtiger:wt",
+    ] + select({
+        "@platforms//os:windows": ["@windows_sasl//:bins"],
+        "//conditions:default": [],
+    }) + select({
+        "//bazel/config:include_mongot_enabled": ["//:mongot_folder"],
+        "//conditions:default": [],
+    }),
+    pretty_printer_tests = {
+        "//src/mongo/util:pretty_printer_test.py": "//src/mongo/util:pretty_printer_test_program",
+        "//src/mongo/db/concurrency:lock_gdb_test.py": "//src/mongo/db:mongod",
+        "//src/mongo/db/query/optimizer:optimizer_gdb_test.py": "//src/mongo/db/query/optimizer:optimizer_gdb_test_program",
+    },
+    deps = [
+        "//src/mongo/db/modules/enterprise:dist-test",
+    ],
+)
+
+mongo_install(
+    name = "mongo-crypt",
+    srcs = [
+        "//src/mongo/db:service_context_non_d",
+        "//src/mongo/db:service_context_test_fixture",
+        "//src/mongo/util/options_parser",
+    ],
+    deps = [
+        "//src/mongo/db/modules/enterprise:mongo-crypt",
+    ],
+)
+
+mongo_install(
+    name = "dbtest",
+    srcs = [
+        "//src/mongo/dbtests:dbtest",
+    ],
+)
+
+mongo_install(
+    name = "sdam_json_test",
+    srcs = [
+        "//src/mongo/client/sdam:sdam_json_test",
+    ],
+)
+
+mongo_install(
+    name = "server_selection_json_test",
+    srcs = [
+        "//src/mongo/client/sdam:server_selection_json_test",
+    ],
+)
+
+mongo_install(
+    name = "stitch_support_dev",
+    srcs = [
+        "//src/mongo/embedded/stitch_support",
+    ],
+)
+
+[
+    mongo_install(
+        name = target_name,
+        testonly = True,
+        srcs = select({
+            "//bazel/config:include_autogenerated_targets_enabled": ["//src/mongo/db/modules/enterprise/autogenerated_targets:" + target_name],
+            "//conditions:default": [],
+        }),
+    )
+    for target_name in TEST_TAGS.keys()
+]

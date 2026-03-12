@@ -1,0 +1,154 @@
+================================================================================================
+Rebasing dates/timestamps in Parquet datasource
+================================================================================================
+
+OpenJDK 64-Bit Server VM 17.0.14+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+Save DATE to parquet:                     Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+after 1582, noop                                  12119          12119           0          8.3         121.2       1.0X
+before 1582, noop                                  6710           6710           0         14.9          67.1       1.8X
+after 1582, rebase EXCEPTION                      21021          21021           0          4.8         210.2       0.6X
+after 1582, rebase LEGACY                         20965          20965           0          4.8         209.6       0.6X
+after 1582, rebase CORRECTED                      21147          21147           0          4.7         211.5       0.6X
+before 1582, rebase LEGACY                        16042          16042           0          6.2         160.4       0.8X
+before 1582, rebase CORRECTED                     16277          16277           0          6.1         162.8       0.7X
+
+OpenJDK 64-Bit Server VM 17.0.14+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+Load DATE from parquet:                   Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+after 1582, vec off, rebase EXCEPTION             11336          11414         101          8.8         113.4       1.0X
+after 1582, vec off, rebase LEGACY                11327          11446         132          8.8         113.3       1.0X
+after 1582, vec off, rebase CORRECTED             11314          11343          48          8.8         113.1       1.0X
+after 1582, vec on, rebase EXCEPTION               2520           2539          24         39.7          25.2       4.5X
+after 1582, vec on, rebase LEGACY                  2553           2570          17         39.2          25.5       4.4X
+after 1582, vec on, rebase CORRECTED               2513           2541          26         39.8          25.1       4.5X
+before 1582, vec off, rebase LEGACY               11551          11577          23          8.7         115.5       1.0X
+before 1582, vec off, rebase CORRECTED            11343          11364          34          8.8         113.4       1.0X
+before 1582, vec on, rebase LEGACY                 2944           2974          31         34.0          29.4       3.9X
+before 1582, vec on, rebase CORRECTED              2514           2535          22         39.8          25.1       4.5X
+
+OpenJDK 64-Bit Server VM 17.0.14+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+Save TIMESTAMP_INT96 to parquet:          Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+after 1900, noop                                   2409           2409           0         41.5          24.1       1.0X
+before 1900, noop                                  2386           2386           0         41.9          23.9       1.0X
+after 1900, rebase EXCEPTION                      13725          13725           0          7.3         137.3       0.2X
+after 1900, rebase LEGACY                         14094          14094           0          7.1         140.9       0.2X
+after 1900, rebase CORRECTED                      14652          14652           0          6.8         146.5       0.2X
+before 1900, rebase LEGACY                        16469          16469           0          6.1         164.7       0.1X
+before 1900, rebase CORRECTED                     14588          14588           0          6.9         145.9       0.2X
+
+OpenJDK 64-Bit Server VM 17.0.14+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+Load TIMESTAMP_INT96 from parquet:        Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+after 1900, vec off, rebase EXCEPTION             15796          15841          40          6.3         158.0       1.0X
+after 1900, vec off, rebase LEGACY                15972          15990          19          6.3         159.7       1.0X
+after 1900, vec off, rebase CORRECTED             15714          15777          67          6.4         157.1       1.0X
+after 1900, vec on, rebase EXCEPTION               4096           4181         127         24.4          41.0       3.9X
+after 1900, vec on, rebase LEGACY                  4137           4169          36         24.2          41.4       3.8X
+after 1900, vec on, rebase CORRECTED               4095           4133          41         24.4          40.9       3.9X
+before 1900, vec off, rebase LEGACY               17882          17964         111          5.6         178.8       0.9X
+before 1900, vec off, rebase CORRECTED            15657          15694          40          6.4         156.6       1.0X
+before 1900, vec on, rebase LEGACY                 6090           6098           8         16.4          60.9       2.6X
+before 1900, vec on, rebase CORRECTED              4084           4113          35         24.5          40.8       3.9X
+
+OpenJDK 64-Bit Server VM 17.0.14+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+Save TIMESTAMP_MICROS to parquet:         Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+after 1900, noop                                   2335           2335           0         42.8          23.4       1.0X
+before 1900, noop                                  2334           2334           0         42.8          23.3       1.0X
+after 1900, rebase EXCEPTION                      12304          12304           0          8.1         123.0       0.2X
+after 1900, rebase LEGACY                         12170          12170           0          8.2         121.7       0.2X
+after 1900, rebase CORRECTED                      12243          12243           0          8.2         122.4       0.2X
+before 1900, rebase LEGACY                        14364          14364           0          7.0         143.6       0.2X
+before 1900, rebase CORRECTED                     12360          12360           0          8.1         123.6       0.2X
+
+OpenJDK 64-Bit Server VM 17.0.14+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+Load TIMESTAMP_MICROS from parquet:       Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+after 1900, vec off, rebase EXCEPTION             14810          14860          64          6.8         148.1       1.0X
+after 1900, vec off, rebase LEGACY                14828          14870          50          6.7         148.3       1.0X
+after 1900, vec off, rebase CORRECTED             14803          14846          52          6.8         148.0       1.0X
+after 1900, vec on, rebase EXCEPTION               3825           3841          21         26.1          38.3       3.9X
+after 1900, vec on, rebase LEGACY                  3825           3855          30         26.1          38.2       3.9X
+after 1900, vec on, rebase CORRECTED               3816           3829          21         26.2          38.2       3.9X
+before 1900, vec off, rebase LEGACY               17050          17085          35          5.9         170.5       0.9X
+before 1900, vec off, rebase CORRECTED            14789          14826          40          6.8         147.9       1.0X
+before 1900, vec on, rebase LEGACY                 5615           5642          31         17.8          56.2       2.6X
+before 1900, vec on, rebase CORRECTED              3820           3836          14         26.2          38.2       3.9X
+
+OpenJDK 64-Bit Server VM 17.0.14+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+Save TIMESTAMP_MILLIS to parquet:         Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+after 1900, noop                                   2368           2368           0         42.2          23.7       1.0X
+before 1900, noop                                  2345           2345           0         42.6          23.4       1.0X
+after 1900, rebase EXCEPTION                      11639          11639           0          8.6         116.4       0.2X
+after 1900, rebase LEGACY                         12215          12215           0          8.2         122.1       0.2X
+after 1900, rebase CORRECTED                      12018          12018           0          8.3         120.2       0.2X
+before 1900, rebase LEGACY                        13977          13977           0          7.2         139.8       0.2X
+before 1900, rebase CORRECTED                     11680          11680           0          8.6         116.8       0.2X
+
+OpenJDK 64-Bit Server VM 17.0.14+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+Load TIMESTAMP_MILLIS from parquet:       Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+after 1900, vec off, rebase EXCEPTION             14926          14944          16          6.7         149.3       1.0X
+after 1900, vec off, rebase LEGACY                14934          14966          30          6.7         149.3       1.0X
+after 1900, vec off, rebase CORRECTED             14947          14970          21          6.7         149.5       1.0X
+after 1900, vec on, rebase EXCEPTION               3962           3988          29         25.2          39.6       3.8X
+after 1900, vec on, rebase LEGACY                  4594           4631          57         21.8          45.9       3.2X
+after 1900, vec on, rebase CORRECTED               4019           4031          15         24.9          40.2       3.7X
+before 1900, vec off, rebase LEGACY               16998          17075          95          5.9         170.0       0.9X
+before 1900, vec off, rebase CORRECTED            14974          14990          18          6.7         149.7       1.0X
+before 1900, vec on, rebase LEGACY                 6205           6223          24         16.1          62.0       2.4X
+before 1900, vec on, rebase CORRECTED              3938           3946          11         25.4          39.4       3.8X
+
+
+================================================================================================
+Rebasing dates/timestamps in ORC datasource
+================================================================================================
+
+OpenJDK 64-Bit Server VM 17.0.14+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+Save DATE to ORC:                         Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+after 1582, noop                                  12042          12042           0          8.3         120.4       1.0X
+before 1582, noop                                  6790           6790           0         14.7          67.9       1.8X
+after 1582                                        15594          15594           0          6.4         155.9       0.8X
+before 1582                                       10660          10660           0          9.4         106.6       1.1X
+
+OpenJDK 64-Bit Server VM 17.0.14+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+Load DATE from ORC:                       Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+after 1582, vec off                                8582           8611          45         11.7          85.8       1.0X
+after 1582, vec on                                 2500           2519          29         40.0          25.0       3.4X
+before 1582, vec off                               8634           8684          55         11.6          86.3       1.0X
+before 1582, vec on                                2662           2666           5         37.6          26.6       3.2X
+
+OpenJDK 64-Bit Server VM 17.0.14+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+Save TIMESTAMP to ORC:                    Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+after 1900, noop                                   2261           2261           0         44.2          22.6       1.0X
+before 1900, noop                                  2240           2240           0         44.6          22.4       1.0X
+after 1900                                         9140           9140           0         10.9          91.4       0.2X
+before 1900                                       10997          10997           0          9.1         110.0       0.2X
+
+OpenJDK 64-Bit Server VM 17.0.14+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+Load TIMESTAMP from ORC:                  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+after 1900, vec off                                9927           9964          47         10.1          99.3       1.0X
+after 1900, vec on                                 4112           4132          26         24.3          41.1       2.4X
+before 1900, vec off                              12027          12048          18          8.3         120.3       0.8X
+before 1900, vec on                                5608           5645          52         17.8          56.1       1.8X
+
+

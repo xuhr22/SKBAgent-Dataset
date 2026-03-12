@@ -1,0 +1,62 @@
+From 54cb3fb30744963e9e1462c1da5fbf305d148a98 Mon Sep 17 00:00:00 2001
+From: Harsh Panchal <BOOTMGR@users.noreply.github.com>
+Date: Thu, 1 Apr 2021 14:49:26 +0530
+Subject: [PATCH 1/2] [SPARK-34934] Fix race condition in adding/removing
+ sources in MetricsSystem
+
+---
+ .../scala/org/apache/spark/metrics/MetricsSystem.scala    | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/core/src/main/scala/org/apache/spark/metrics/MetricsSystem.scala b/core/src/main/scala/org/apache/spark/metrics/MetricsSystem.scala
+index b0c424bdc3f9..f06fcb38bde3 100644
+--- a/core/src/main/scala/org/apache/spark/metrics/MetricsSystem.scala
++++ b/core/src/main/scala/org/apache/spark/metrics/MetricsSystem.scala
+@@ -156,7 +156,9 @@ private[spark] class MetricsSystem private (
+     sources.filter(_.sourceName == sourceName).toSeq
+ 
+   def registerSource(source: Source): Unit = {
+-    sources += source
++    sources.synchronized {
++      sources += source
++    }
+     try {
+       val regName = buildRegistryName(source)
+       registry.register(regName, source.metricRegistry)
+@@ -166,7 +168,9 @@ private[spark] class MetricsSystem private (
+   }
+ 
+   def removeSource(source: Source): Unit = {
+-    sources -= source
++    sources.synchronized {
++      sources -= source
++    }
+     val regName = buildRegistryName(source)
+     registry.removeMatching((name: String, _: Metric) => name.startsWith(regName))
+   }
+
+From fb95e69dbfd27942f09489139a801fca6114ebd1 Mon Sep 17 00:00:00 2001
+From: BOOTMGR <panchal.harsh18@gmail.com>
+Date: Sat, 3 Apr 2021 14:37:10 +0530
+Subject: [PATCH 2/2] [SPARK-34934] Synchronize access to
+ `MetricsSystem#getSourcesByName`
+
+Signed-off-by: BOOTMGR <panchal.harsh18@gmail.com>
+---
+ .../main/scala/org/apache/spark/metrics/MetricsSystem.scala    | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/core/src/main/scala/org/apache/spark/metrics/MetricsSystem.scala b/core/src/main/scala/org/apache/spark/metrics/MetricsSystem.scala
+index f06fcb38bde3..abece1ec0955 100644
+--- a/core/src/main/scala/org/apache/spark/metrics/MetricsSystem.scala
++++ b/core/src/main/scala/org/apache/spark/metrics/MetricsSystem.scala
+@@ -152,8 +152,9 @@ private[spark] class MetricsSystem private (
+     } else { defaultName }
+   }
+ 
+-  def getSourcesByName(sourceName: String): Seq[Source] =
++  def getSourcesByName(sourceName: String): Seq[Source] = sources.synchronized {
+     sources.filter(_.sourceName == sourceName).toSeq
++  }
+ 
+   def registerSource(source: Source): Unit = {

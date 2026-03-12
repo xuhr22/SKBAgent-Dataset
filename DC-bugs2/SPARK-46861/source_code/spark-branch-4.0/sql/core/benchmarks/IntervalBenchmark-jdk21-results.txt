@@ -1,0 +1,40 @@
+OpenJDK 64-Bit Server VM 21.0.6+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+cast strings to intervals:                Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+prepare string w/ interval                          430            461          48          2.3         429.9       1.0X
+prepare string w/o interval                         377            393          19          2.7         376.6       1.1X
+1 units w/ interval                                 342            351          11          2.9         341.6       1.3X
+1 units w/o interval                                343            357          13          2.9         342.5       1.3X
+2 units w/ interval                                 529            537           8          1.9         528.5       0.8X
+2 units w/o interval                                549            550           2          1.8         549.2       0.8X
+3 units w/ interval                                1077           1081           3          0.9        1077.0       0.4X
+3 units w/o interval                               1106           1118          17          0.9        1105.7       0.4X
+4 units w/ interval                                1310           1329          17          0.8        1310.0       0.3X
+4 units w/o interval                               1363           1384          18          0.7        1362.8       0.3X
+5 units w/ interval                                1486           1506          21          0.7        1485.8       0.3X
+5 units w/o interval                               1502           1511           8          0.7        1501.6       0.3X
+6 units w/ interval                                1635           1656          20          0.6        1634.9       0.3X
+6 units w/o interval                               1660           1669          11          0.6        1660.2       0.3X
+7 units w/ interval                                2026           2040          12          0.5        2025.8       0.2X
+7 units w/o interval                               1994           2009          13          0.5        1994.1       0.2X
+8 units w/ interval                                2288           2298          17          0.4        2287.7       0.2X
+8 units w/o interval                               2285           2291           6          0.4        2284.7       0.2X
+9 units w/ interval                                2290           2298          10          0.4        2289.8       0.2X
+9 units w/o interval                               2285           2306          29          0.4        2285.3       0.2X
+10 units w/ interval                               2844           2845           1          0.4        2844.1       0.2X
+10 units w/o interval                              2845           2849           3          0.4        2845.4       0.2X
+11 units w/ interval                               3091           3095           6          0.3        3091.2       0.1X
+11 units w/o interval                              3066           3079          11          0.3        3066.4       0.1X
+
+OpenJDK 64-Bit Server VM 21.0.6+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+make_interval():                            Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+--------------------------------------------------------------------------------------------------------------------------
+prepare make_interval()                               342            350          12          2.9         342.3       1.0X
+make_interval(0, 1, 2, 3, 4, 5, 50.123456)             44             46           4         22.7          44.0       7.8X
+make_interval(*, *, 2, 3, 4, 5, 50.123456)             53             57           4         19.0          52.6       6.5X
+make_interval(0, 1, *, *, 4, 5, 50.123456)             56             58           3         17.8          56.2       6.1X
+make_interval(0, 1, 2, 3, *, *, *)                    327            330           3          3.1         326.5       1.0X
+make_interval(*, *, *, *, *, *, *)                    334            335           2          3.0         334.0       1.0X
+

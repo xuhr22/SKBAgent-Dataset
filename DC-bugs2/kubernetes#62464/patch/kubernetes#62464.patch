@@ -1,0 +1,23 @@
+From c1b19fce903675b82e9fdd1befcc5f5d658bfe78 Mon Sep 17 00:00:00 2001
+From: choury <zhouwei400@gmail.com>
+Date: Thu, 12 Apr 2018 19:44:07 +0800
+Subject: [PATCH] avoid dobule RLock() in cpumanager
+
+---
+ pkg/kubelet/cm/cpumanager/state/state_mem.go | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/pkg/kubelet/cm/cpumanager/state/state_mem.go b/pkg/kubelet/cm/cpumanager/state/state_mem.go
+index 797cdb15b2b9e..816c89868e58c 100644
+--- a/pkg/kubelet/cm/cpumanager/state/state_mem.go
++++ b/pkg/kubelet/cm/cpumanager/state/state_mem.go
+@@ -56,9 +56,6 @@ func (s *stateMemory) GetDefaultCPUSet() cpuset.CPUSet {
+ }
+ 
+ func (s *stateMemory) GetCPUSetOrDefault(containerID string) cpuset.CPUSet {
+-	s.RLock()
+-	defer s.RUnlock()
+-
+ 	if res, ok := s.GetCPUSet(containerID); ok {
+ 		return res
+ 	}

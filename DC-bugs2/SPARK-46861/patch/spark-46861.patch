@@ -1,0 +1,90 @@
+From c0e512c22910908cc1657c1094c3a3ff504a659b Mon Sep 17 00:00:00 2001
+From: fred-db <fredrik.klauss@databricks.com>
+Date: Thu, 25 Jan 2024 14:29:18 +0100
+Subject: [PATCH 1/2] Fix deadlock
+
+---
+ .../main/scala/org/apache/spark/rdd/RDD.scala | 11 ++++--
+ .../apache/spark/scheduler/DAGScheduler.scala | 31 ++++++++-------
+ .../spark/scheduler/DAGSchedulerSuite.scala   | 38 ++++++++++++++++++-
+ 3 files changed, 62 insertions(+), 18 deletions(-)
+
+diff --git a/core/src/main/scala/org/apache/spark/rdd/RDD.scala b/core/src/main/scala/org/apache/spark/rdd/RDD.scala
+index d73fb1b9bc3b..a48eaa253ad1 100644
+--- a/core/src/main/scala/org/apache/spark/rdd/RDD.scala
++++ b/core/src/main/scala/org/apache/spark/rdd/RDD.scala
+@@ -224,14 +224,17 @@ abstract class RDD[T: ClassTag](
+    * not use `this` because RDDs are user-visible, so users might have added their own locking on
+    * RDDs; sharing that could lead to a deadlock.
+    *
+-   * One thread might hold the lock on many of these, for a chain of RDD dependencies; but
+-   * because DAGs are acyclic, and we only ever hold locks for one path in that DAG, there is no
+-   * chance of deadlock.
++   * One thread might hold the lock on many of these, for a chain of RDD dependencies. Deadlocks
++   * are possible if we try to lock another resource while holding the stateLock,
++   * and the lock acquisition sequence of these locks is not guaranteed to be the same.
++   * This can lead lead to a deadlock as one thread might first acquire the stateLock,
++   * and then the resource,
++   * while another thread might first acquire the resource, and then the stateLock.
+    *
+    * Executors may reference the shared fields (though they should never mutate them,
+    * that only happens on the driver).
+    */
+-  private val stateLock = new Serializable {}
++  private[spark] val stateLock = new Serializable {}
+ 
+   // Our dependencies and partitions will be gotten by calling subclass's methods below, and will
+   // be overwritten when we're checkpointed
+diff --git a/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala b/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
+index e728d921d290..e74a3efac250 100644
+--- a/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
++++ b/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
+@@ -181,6 +181,9 @@ private[spark] class DAGScheduler(
+    * locations where that RDD partition is cached.
+    *
+    * All accesses to this map should be guarded by synchronizing on it (see SPARK-4454).
++   * If you need to access any RDD while synchronizing on the cache locations,
++   * first synchronize on the RDD, and then synchronize on this map to avoid deadlocks. The RDD
++   * could try to access the cache locations after synchronizing on the RDD.
+    */
+   private val cacheLocs = new HashMap[Int, IndexedSeq[Seq[TaskLocation]]]
+ 
+@@ -435,22 +438,24 @@ private[spark] class DAGScheduler(
+   }
+ 
+   private[scheduler]
+-  def getCacheLocs(rdd: RDD[_]): IndexedSeq[Seq[TaskLocation]] = cacheLocs.synchronized {
+-    // Note: this doesn't use `getOrElse()` because this method is called O(num tasks) times
+-    if (!cacheLocs.contains(rdd.id)) {
+-      // Note: if the storage level is NONE, we don't need to get locations from block manager.
+-      val locs: IndexedSeq[Seq[TaskLocation]] = if (rdd.getStorageLevel == StorageLevel.NONE) {
+-        IndexedSeq.fill(rdd.partitions.length)(Nil)
+-      } else {
+-        val blockIds =
+-          rdd.partitions.indices.map(index => RDDBlockId(rdd.id, index)).toArray[BlockId]
+-        blockManagerMaster.getLocations(blockIds).map { bms =>
+-          bms.map(bm => TaskLocation(bm.host, bm.executorId))
++  def getCacheLocs(rdd: RDD[_]): IndexedSeq[Seq[TaskLocation]] = rdd.stateLock.synchronized {
++    cacheLocs.synchronized {
++      // Note: this doesn't use `getOrElse()` because this method is called O(num tasks) times
++      if (!cacheLocs.contains(rdd.id)) {
++        // Note: if the storage level is NONE, we don't need to get locations from block manager.
++        val locs: IndexedSeq[Seq[TaskLocation]] = if (rdd.getStorageLevel == StorageLevel.NONE) {
++          IndexedSeq.fill(rdd.partitions.length)(Nil)
++        } else {
++          val blockIds =
++            rdd.partitions.indices.map(index => RDDBlockId(rdd.id, index)).toArray[BlockId]
++          blockManagerMaster.getLocations(blockIds).map { bms =>
++            bms.map(bm => TaskLocation(bm.host, bm.executorId))
++          }
+         }
++        cacheLocs(rdd.id) = locs
+       }
+-      cacheLocs(rdd.id) = locs
++      cacheLocs(rdd.id)
+     }
+-    cacheLocs(rdd.id)
+   }
+ 
+   private def clearCacheLocs(): Unit = cacheLocs.synchronized {
+

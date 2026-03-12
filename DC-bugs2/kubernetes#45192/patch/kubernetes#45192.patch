@@ -1,0 +1,29 @@
+From 04e2deeb287f7d60372ed853a75acfff3668cedc Mon Sep 17 00:00:00 2001
+From: Chris Hoffman <christopher.hoffman@vertivco.com>
+Date: Mon, 1 May 2017 17:12:12 -0500
+Subject: [PATCH] Prevent deadlock on azure zone fetch in presence of failure
+
+---
+ pkg/cloudprovider/providers/azure/azure_zones.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/pkg/cloudprovider/providers/azure/azure_zones.go b/pkg/cloudprovider/providers/azure/azure_zones.go
+index ab2dd9e3b27f3..93eb4825fe388 100644
+--- a/pkg/cloudprovider/providers/azure/azure_zones.go
++++ b/pkg/cloudprovider/providers/azure/azure_zones.go
+@@ -40,6 +40,7 @@ type instanceInfo struct {
+ // GetZone returns the Zone containing the current failure zone and locality region that the program is running in
+ func (az *Cloud) GetZone() (cloudprovider.Zone, error) {
+ 	faultMutex.Lock()
++	defer faultMutex.Unlock()
+ 	if faultDomain == nil {
+ 		var err error
+ 		faultDomain, err = fetchFaultDomain()
+@@ -51,7 +52,6 @@ func (az *Cloud) GetZone() (cloudprovider.Zone, error) {
+ 		FailureDomain: *faultDomain,
+ 		Region:        az.Location,
+ 	}
+-	faultMutex.Unlock()
+ 	return zone, nil
+ }
+ 

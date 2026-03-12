@@ -1,0 +1,81 @@
+From c443bdd3b25d1fd313aab9ab96b903a824a61079 Mon Sep 17 00:00:00 2001
+From: Lucas Brutschy <lbrutschy@confluent.io>
+Date: Thu, 15 May 2025 12:47:37 +0200
+Subject: [PATCH 2/3] other fixes
+
+---
+ .../storage/internals/log/UnifiedLog.java     | 25 ++++++++++---------
+ 1 file changed, 13 insertions(+), 12 deletions(-)
+
+diff --git a/storage/src/main/java/org/apache/kafka/storage/internals/log/UnifiedLog.java b/storage/src/main/java/org/apache/kafka/storage/internals/log/UnifiedLog.java
+index 47b972b9dde33..08801dd202b97 100644
+--- a/storage/src/main/java/org/apache/kafka/storage/internals/log/UnifiedLog.java
++++ b/storage/src/main/java/org/apache/kafka/storage/internals/log/UnifiedLog.java
+@@ -483,7 +483,7 @@ private void initializeTopicId() {
+ 
+         if (partMetadataFile.exists()) {
+             Uuid fileTopicId = partMetadataFile.read().topicId();
+-            if (topicId.isPresent() && !topicId.get().equals(fileTopicId)) {
++            if (topicId.filter(x -> !x.equals(fileTopicId)).isPresent()) {
+                 throw new InconsistentTopicIdException("Tried to assign topic ID " + topicId + " to log for topic partition " + topicPartition() + "," +
+                         "but log already contained topic ID " + fileTopicId);
+             }
+@@ -672,8 +672,9 @@ private LogOffsetMetadata fetchLastStableOffsetMetadata() throws IOException {
+      * beyond the high watermark.
+      */
+     public long lastStableOffset() {
+-        if (firstUnstableOffsetMetadata.isPresent() && firstUnstableOffsetMetadata.get().messageOffset < highWatermark()) {
+-            return firstUnstableOffsetMetadata.get().messageOffset;
++        Optional<LogOffsetMetadata> firstUnstableOffsetMetadataCopy = firstUnstableOffsetMetadata;
++        if (firstUnstableOffsetMetadataCopy.isPresent() && firstUnstableOffsetMetadataCopy.get().messageOffset < highWatermark()) {
++            return firstUnstableOffsetMetadataCopy.get().messageOffset;
+         } else {
+             return highWatermark();
+         }
+@@ -751,15 +752,15 @@ public void assignTopicId(Uuid topicId) {
+             }
+         } else {
+             this.topicId = Optional.of(topicId);
+-            if (partitionMetadataFile.isPresent()) {
+-                PartitionMetadataFile file = partitionMetadataFile.get();
+-                if (!file.exists()) {
+-                    file.record(topicId);
+-                    scheduler().scheduleOnce("flush-metadata-file", this::maybeFlushMetadataFile);
+-                }
+-            } else {
+-                logger.warn("The topic id {} will not be persisted to the partition metadata file since the partition is deleted", topicId);
+-            }
++            partitionMetadataFile.ifPresentOrElse(
++                file -> {
++                    if (!file.exists()) {
++                        file.record(topicId);
++                        scheduler().scheduleOnce("flush-metadata-file", this::maybeFlushMetadataFile);
++                    }
++                },
++                () -> logger.warn("The topic id {} will not be persisted to the partition metadata file since the partition is deleted", topicId)
++            );
+         }
+     }
+ 
+
+From 66d15fb326c70b863486ef32c33bc3f92247850c Mon Sep 17 00:00:00 2001
+From: Lucas Brutschy <lbrutschy@confluent.io>
+Date: Fri, 16 May 2025 20:12:50 +0200
+Subject: [PATCH 3/3] commnets
+
+---
+ .../org/apache/kafka/storage/internals/log/UnifiedLog.java    | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/storage/src/main/java/org/apache/kafka/storage/internals/log/UnifiedLog.java b/storage/src/main/java/org/apache/kafka/storage/internals/log/UnifiedLog.java
+index 08801dd202b97..85e85212b114f 100644
+--- a/storage/src/main/java/org/apache/kafka/storage/internals/log/UnifiedLog.java
++++ b/storage/src/main/java/org/apache/kafka/storage/internals/log/UnifiedLog.java
+@@ -645,7 +645,8 @@ public Optional<Long> firstUnstableOffset() {
+     private LogOffsetMetadata fetchLastStableOffsetMetadata() throws IOException {
+         localLog.checkIfMemoryMappedBufferClosed();
+ 
+-        // cache the current high watermark to avoid a concurrent update invalidating the range check
++        // cache the current high watermark and the first unstable offset metadata to avoid a concurrent update
++        // invalidating the range check breaking the isPresent check
+         LogOffsetMetadata highWatermarkMetadata = fetchHighWatermarkMetadata();

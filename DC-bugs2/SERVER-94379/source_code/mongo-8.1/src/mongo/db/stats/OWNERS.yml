@@ -1,0 +1,21 @@
+version: 1.0.0
+filters:
+  - "storage_stats*":
+    approvers:
+      - 10gen/server-storage-engine-integration
+      - 10gen/server-catalog-and-routing
+  - "counters*":
+    approvers:
+      - 10gen/query-execution
+  - "top*":
+    approvers:
+      - 10gen/query-integration-observability
+  - "latency_server_status_section.cpp":
+    approvers:
+      - 10gen/query-integration-observability
+  - "*resource_consumption*":
+    approvers:
+      - 10gen/server-storage-engine-integration
+  - "operation_latency_histogram*":
+    approvers:
+      - 10gen/query-integration-observability

@@ -1,0 +1,24 @@
+From f1708aa899f7785d707c6093897143c3bb058505 Mon Sep 17 00:00:00 2001
+From: Kaloian Manassiev <kaloian.manassiev@mongodb.com>
+Date: Mon, 4 May 2015 12:37:05 -0400
+Subject: [PATCH] SERVER-16636 Disable deadlock detection during MMAP V1
+ journal lock upgrade
+
+(cherry picked from commit ac6f659b82f022280ab4d92fa715fc0e21828c1f)
+---
+ src/mongo/db/concurrency/lock_state.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/mongo/db/concurrency/lock_state.cpp b/src/mongo/db/concurrency/lock_state.cpp
+index 8e4859211f004..e2a7d86ee3ea0 100644
+--- a/src/mongo/db/concurrency/lock_state.cpp
++++ b/src/mongo/db/concurrency/lock_state.cpp
+@@ -848,7 +848,7 @@ namespace {
+         // This should not be able to deadlock, since we already hold the S journal lock, which
+         // means all writers are kicked out. Readers always yield the journal lock if they block
+         // waiting on any other lock.
+-        invariant(LOCK_OK == _locker->lock(resourceIdMMAPV1Flush, MODE_X, UINT_MAX, true));
++        invariant(LOCK_OK == _locker->lock(resourceIdMMAPV1Flush, MODE_X, UINT_MAX, false));
+ 
+         // Lock bumps the recursive count. Drop it back down so that the destructor doesn't
+         // complain.

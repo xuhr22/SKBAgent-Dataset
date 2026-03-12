@@ -1,0 +1,56 @@
+OpenJDK 64-Bit Server VM 17.0.14+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+Avro writer benchmark:                    Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+Output Single Int Column                           1565           1571           9         10.0          99.5       1.0X
+Output Single Double Column                        1625           1629           5          9.7         103.3       1.0X
+Output Int and String Column                       3282           3305          33          4.8         208.6       0.5X
+Output Partitions                                  2887           2923          50          5.4         183.6       0.5X
+Output Buckets                                     3716           3722           8          4.2         236.2       0.4X
+
+OpenJDK 64-Bit Server VM 17.0.14+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+Avro compression with different codec:    Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+BZIP2:                                           131985         132880        1265          0.0     1319848.1       1.0X
+DEFLATE:                                           6543           6564          30          0.0       65430.0      20.2X
+UNCOMPRESSED:                                      5184           5191          10          0.0       51843.3      25.5X
+SNAPPY:                                            4842           4851          14          0.0       48415.7      27.3X
+XZ:                                               44907          45232         460          0.0      449066.2       2.9X
+ZSTANDARD:                                         4896           4922          36          0.0       48964.9      27.0X
+
+OpenJDK 64-Bit Server VM 17.0.14+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+Avro deflate with different levels:       Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+DEFLATE: deflate.level=1                           4902           4927          35          0.0       49023.7       1.0X
+DEFLATE: deflate.level=3                           4878           4938          86          0.0       48775.4       1.0X
+DEFLATE: deflate.level=5                           6537           6542           6          0.0       65372.6       0.7X
+DEFLATE: deflate.level=7                           6560           6579          27          0.0       65598.7       0.7X
+DEFLATE: deflate.level=9                           6908           6930          31          0.0       69081.3       0.7X
+
+OpenJDK 64-Bit Server VM 17.0.14+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+Avro xz with different levels:            Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+XZ: xz.level=1                                    12347          12410          89          0.0      123474.1       1.0X
+XZ: xz.level=3                                    23426          23569         203          0.0      234259.6       0.5X
+XZ: xz.level=5                                    43731          43923         271          0.0      437309.5       0.3X
+XZ: xz.level=7                                    63761          64241         679          0.0      637607.6       0.2X
+XZ: xz.level=9                                   139683         141330        2330          0.0     1396826.1       0.1X
+
+OpenJDK 64-Bit Server VM 17.0.14+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+Avro zstandard with different levels:                            Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+-----------------------------------------------------------------------------------------------------------------------------------------------
+ZSTANDARD: zstandard.level=1                                              4764           4797          46          0.0       47640.7       1.0X
+ZSTANDARD: zstandard.level=1, zstandard.bufferPool.enabled=true           4727           4730           5          0.0       47268.5       1.0X
+ZSTANDARD: zstandard.level=3                                              4876           4913          52          0.0       48764.7       1.0X
+ZSTANDARD: zstandard.level=3, zstandard.bufferPool.enabled=true           4823           4851          40          0.0       48228.2       1.0X
+ZSTANDARD: zstandard.level=5                                              5201           5230          40          0.0       52010.0       0.9X
+ZSTANDARD: zstandard.level=5, zstandard.bufferPool.enabled=true           5024           5057          47          0.0       50237.7       0.9X
+ZSTANDARD: zstandard.level=7                                              5533           5552          27          0.0       55330.3       0.9X
+ZSTANDARD: zstandard.level=7, zstandard.bufferPool.enabled=true           5525           5540          21          0.0       55251.4       0.9X
+ZSTANDARD: zstandard.level=9                                              6350           6377          38          0.0       63502.8       0.8X
+ZSTANDARD: zstandard.level=9, zstandard.bufferPool.enabled=true           6159           6245         123          0.0       61585.7       0.8X
+

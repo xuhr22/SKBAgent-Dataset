@@ -1,0 +1,69 @@
+########################################################################################################
+#            This file contains thresholds for performance tests run by resmoke. These correspond to   #
+#            the GenerateAndCheckPerfResults hook. Thresholds are set on a per variant basis.          #
+#            Make sure to set the --variantName flag when running benchmarks in resmoke.               #
+#                                                                                                      #
+#            Each entry should follow the format below                                                 #
+########################################################################################################
+#
+# tests:
+#   test1:
+#     variant1:
+#       - thread_level: {thread_level_value}
+#         metrics:
+#           - name: {name of the metric to check}
+#             value: {Whatever the threshold to check against is}
+#             bound_direction: {What the threshold direction should be. Must be one of upper or lower}
+#       - thread_level: {thread_level_value}
+#         metrics:
+#           - name: {name of the metric to check}
+#             value: {Whatever the threshold to check against is}
+#             bound_direction: {What the threshold direction should be. Must be one of upper or lower}
+#   test2:
+#     variant1:
+#       - thread_level: {thread_level_value}
+#         metrics:
+#           - name: {name of the metric to check}
+#             value: {Whatever the threshold to check against is}
+#             bound_direction: {What the threshold direction should be. Must be one of upper or lower}
+#       - thread_level: {thread_level_value}
+#         metrics:
+#           - name: {name of the metric to check}
+#             value: {Whatever the threshold to check against is}
+#             bound_direction: {What the threshold direction should be. Must be one of upper or lower}
+#
+#
+#
+#
+#     Bound direction upper means that the value reported by the test must be BELOW the threshold value.
+#     Bound direction lower means that the value reported by the test must be ABOVE the threshold value.
+#
+#
+########################################################################################################
+
+tests:
+  # threshholds are 0.4% above current stable region
+  ServiceEntryPointRouterRoleBenchmarkFixture/BM_SEP_PING:
+    al2023-arm64-sep-benchmark:
+      - thread_level: 1
+        metrics:
+          - name: instructions_per_iteration_mean
+            value: 19447
+            bound_direction: upper
+      - thread_level: 32
+        metrics:
+          - name: instructions_per_iteration_mean
+            value: 19461
+            bound_direction: upper
+  ServiceEntryPointShardRoleBenchmarkFixture/BM_SEP_PING:
+    al2023-arm64-sep-benchmark:
+      - thread_level: 1
+        metrics:
+          - name: instructions_per_iteration_mean
+            value: 20852
+            bound_direction: upper
+      - thread_level: 32
+        metrics:
+          - name: instructions_per_iteration_mean
+            value: 20924
+            bound_direction: upper

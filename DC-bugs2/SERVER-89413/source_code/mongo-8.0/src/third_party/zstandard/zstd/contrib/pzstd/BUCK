@@ -1,0 +1,75 @@
+cxx_library(
+    name = "libpzstd",
+    srcs = [
+        "Pzstd.cpp",
+        "SkippableFrame.cpp",
+    ],
+    exported_headers = [
+        "ErrorHolder.h",
+        "Logging.h",
+        "Pzstd.h",
+    ],
+    header_namespace = "",
+    headers = [
+        "SkippableFrame.h",
+    ],
+    visibility = ["PUBLIC"],
+    deps = [
+        ":options",
+        "//contrib/pzstd/utils",
+        "//lib:mem",
+        "//lib:zstd",
+    ],
+)
+
+cxx_library(
+    name = "options",
+    srcs = ["Options.cpp"],
+    exported_headers = ["Options.h"],
+    header_namespace = "",
+    visibility = ["PUBLIC"],
+    deps = [
+        "//contrib/pzstd/utils:scope_guard",
+        "//lib:zstd",
+        "//programs:util",
+    ],
+)
+
+cxx_binary(
+    name = "pzstd",
+    srcs = ["main.cpp"],
+    visibility = ["PUBLIC"],
+    deps = [
+        ":libpzstd",
+        ":options",
+    ],
+)
+
+# Must run "make googletest" first
+cxx_library(
+    name = "gtest",
+    srcs = glob([
+        "googletest/googletest/src/gtest-all.cc",
+        "googletest/googlemock/src/gmock-all.cc",
+        "googletest/googlemock/src/gmock_main.cc",
+    ]),
+    exported_headers = subdir_glob([
+        ("googletest/googletest/include", "**/*.h"),
+        ("googletest/googlemock/include", "**/*.h"),
+    ]),
+    header_namespace = "",
+    headers = subdir_glob([
+        ("googletest/googletest", "src/*.cc"),
+        ("googletest/googletest", "src/*.h"),
+        ("googletest/googlemock", "src/*.cc"),
+        ("googletest/googlemock", "src/*.h"),
+    ]),
+    platform_linker_flags = [
+        ("android", []),
+        (
+            "",
+            ["-lpthread"],
+        ),
+    ],
+    visibility = ["PUBLIC"],
+)

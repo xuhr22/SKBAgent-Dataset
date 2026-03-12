@@ -1,0 +1,14 @@
+version: 1.0.0
+filters:
+  - "*server_parameter*":
+    approvers:
+      - 10gen/server-programmability
+  - "*index_build*":
+    approvers:
+      - 10gen/server-index-builds
+  - "*change_stream*":
+    approvers:
+      - 10gen/query-execution-change-streams
+  - "net.*":
+    approvers:
+      - 10gen/server-networking-and-observability

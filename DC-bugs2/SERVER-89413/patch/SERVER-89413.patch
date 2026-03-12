@@ -1,0 +1,55 @@
+From 620722aa707017794232966766b6deb94fe47a03 Mon Sep 17 00:00:00 2001
+From: atesteve <aitor.esteve@mongodb.com>
+Date: Fri, 19 Apr 2024 10:41:13 +0200
+Subject: [PATCH] SERVER-89413  Fix deadlock in TransactionRouter (#21256)
+
+GitOrigin-RevId: dd4a8f224e8ba22caafb9471dba28efa37236f29
+---
+ src/mongo/s/transaction_router.cpp | 27 +++++++++++++--------------
+ 1 file changed, 13 insertions(+), 14 deletions(-)
+
+diff --git a/src/mongo/s/transaction_router.cpp b/src/mongo/s/transaction_router.cpp
+index fcd1d81dd6b56..f6581f2da9dff 100644
+--- a/src/mongo/s/transaction_router.cpp
++++ b/src/mongo/s/transaction_router.cpp
+@@ -1882,27 +1882,26 @@ BSONObj TransactionRouter::Router::_commitWithRecoveryToken(OperationContext* op
+             recoveryToken.getRecoveryShardId());
+     const auto& recoveryShardId = *recoveryToken.getRecoveryShardId();
+ 
+-    const auto shardRegistry = Grid::get(opCtx)->shardRegistry();
+-
+     auto coordinateCommitCmd = [&] {
+         CoordinateCommitTransaction coordinateCommitCmd;
+         coordinateCommitCmd.setDbName(DatabaseName::kAdmin);
+         coordinateCommitCmd.setParticipants({});
+-
+-        auto rawCoordinateCommit = coordinateCommitCmd.toBSON(
++        return coordinateCommitCmd.toBSON(
+             BSON(WriteConcernOptions::kWriteConcernField << opCtx->getWriteConcern().toBSON()));
+-
+-        return attachTxnFieldsIfNeeded(opCtx, recoveryShardId, rawCoordinateCommit);
+     }();
+ 
+-    auto recoveryShard = uassertStatusOK(shardRegistry->getShard(opCtx, recoveryShardId));
+-    return uassertStatusOK(recoveryShard->runCommandWithFixedRetryAttempts(
+-                               opCtx,
+-                               ReadPreferenceSetting{ReadPreference::PrimaryOnly},
+-                               DatabaseName::kAdmin,
+-                               coordinateCommitCmd,
+-                               Shard::RetryPolicy::kIdempotent))
+-        .response;
++    MultiStatementTransactionRequestsSender ars(
++        opCtx,
++        Grid::get(opCtx)->getExecutorPool()->getFixedExecutor(),
++        DatabaseName::kAdmin,
++        {{recoveryShardId, coordinateCommitCmd}},
++        ReadPreferenceSetting{ReadPreference::PrimaryOnly},
++        Shard::RetryPolicy::kIdempotent);
++
++    const auto response = ars.next();
++    invariant(ars.done());
++    uassertStatusOK(response.swResponse);
++    return response.swResponse.getValue().data;
+ }
+ 
+ void TransactionRouter::Router::_logSlowTransaction(OperationContext* opCtx,

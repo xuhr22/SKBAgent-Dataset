@@ -1,0 +1,158 @@
+================================================================================================
+parsing large select expressions
+================================================================================================
+
+OpenJDK 64-Bit Server VM 21.0.6+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+parsing large select:                     Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+1 select expressions                                  1              1           0          0.0      642018.0       1.0X
+100 select expressions                                3              3           0          0.0     3204579.0       0.2X
+2500 select expressions                              70             71           1          0.0    69845702.0       0.0X
+
+
+================================================================================================
+optimize large select expressions
+================================================================================================
+
+OpenJDK 64-Bit Server VM 21.0.6+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+optimize large select:                    Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+100 columns                                           3              4           1          0.0     2804252.0       1.0X
+1000 columns                                         16             17           3          0.0    15867818.0       0.2X
+10000 columns                                       147            164          10          0.0   147113212.0       0.0X
+
+
+================================================================================================
+many column field read and write
+================================================================================================
+
+OpenJDK 64-Bit Server VM 21.0.6+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+many column field r/w:                    Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+1 cols x 100000 rows (read in-mem)                   21             33          10          4.7         214.2       1.0X
+1 cols x 100000 rows (exec in-mem)                   16             22           7          6.1         163.8       1.3X
+1 cols x 100000 rows (read parquet)                  29             38           8          3.5         287.0       0.7X
+1 cols x 100000 rows (write parquet)                 89            102          12          1.1         892.0       0.2X
+100 cols x 1000 rows (read in-mem)                   11             17           5          8.9         112.3       1.9X
+100 cols x 1000 rows (exec in-mem)                   14             19           6          7.3         137.1       1.6X
+100 cols x 1000 rows (read parquet)                  23             30           9          4.3         232.2       0.9X
+100 cols x 1000 rows (write parquet)                 86             95          13          1.2         858.0       0.2X
+2500 cols x 40 rows (read in-mem)                    44             51           9          2.3         436.3       0.5X
+2500 cols x 40 rows (exec in-mem)                    70             82          13          1.4         702.6       0.3X
+2500 cols x 40 rows (read parquet)                  276            293          28          0.4        2760.9       0.1X
+2500 cols x 40 rows (write parquet)                 117            133          17          0.9        1169.0       0.2X
+
+
+================================================================================================
+wide shallowly nested struct field read and write
+================================================================================================
+
+OpenJDK 64-Bit Server VM 21.0.6+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+wide shallowly nested struct field r/w:   Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+1 wide x 100000 rows (read in-mem)                   20             25           6          5.1         195.3       1.0X
+1 wide x 100000 rows (exec in-mem)                   21             26           8          4.8         206.3       0.9X
+1 wide x 100000 rows (read parquet)                  21             27           7          4.7         211.0       0.9X
+1 wide x 100000 rows (write parquet)                 92            103          14          1.1         922.1       0.2X
+100 wide x 1000 rows (read in-mem)                   14             18           4          7.1         140.7       1.4X
+100 wide x 1000 rows (exec in-mem)                   15             18           4          6.6         151.3       1.3X
+100 wide x 1000 rows (read parquet)                  21             28           8          4.9         205.8       0.9X
+100 wide x 1000 rows (write parquet)                 87             94           8          1.1         872.1       0.2X
+2500 wide x 40 rows (read in-mem)                    20             23           5          5.1         195.8       1.0X
+2500 wide x 40 rows (exec in-mem)                    21             24           5          4.9         206.0       0.9X
+2500 wide x 40 rows (read parquet)                   64             67           5          1.6         637.3       0.3X
+2500 wide x 40 rows (write parquet)                 101            108           6          1.0        1012.3       0.2X
+
+
+================================================================================================
+deeply nested struct field read and write
+================================================================================================
+
+OpenJDK 64-Bit Server VM 21.0.6+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+deeply nested struct field r/w:           Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+1 deep x 100000 rows (read in-mem)                   15             18           4          6.6         152.2       1.0X
+1 deep x 100000 rows (exec in-mem)                   17             20           4          5.8         172.9       0.9X
+1 deep x 100000 rows (read parquet)                  17             21           5          5.7         174.6       0.9X
+1 deep x 100000 rows (write parquet)                 90            100           8          1.1         897.9       0.2X
+100 deep x 1000 rows (read in-mem)                   43             49           5          2.3         429.4       0.4X
+100 deep x 1000 rows (exec in-mem)                  480            488           8          0.2        4799.3       0.0X
+100 deep x 1000 rows (read parquet)                 493            498           4          0.2        4929.2       0.0X
+100 deep x 1000 rows (write parquet)                117            125           9          0.9        1166.8       0.1X
+250 deep x 400 rows (read in-mem)                   194            199           3          0.5        1944.3       0.1X
+250 deep x 400 rows (exec in-mem)                  2908           2919          16          0.0       29083.8       0.0X
+250 deep x 400 rows (read parquet)                 2912           2912           0          0.0       29119.1       0.0X
+250 deep x 400 rows (write parquet)                 267            271           3          0.4        2668.5       0.1X
+
+
+================================================================================================
+bushy struct field read and write
+================================================================================================
+
+OpenJDK 64-Bit Server VM 21.0.6+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+bushy struct field r/w:                    Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+-------------------------------------------------------------------------------------------------------------------------
+1 x 1 deep x 100000 rows (read in-mem)                13             15           4          7.6         132.0       1.0X
+1 x 1 deep x 100000 rows (exec in-mem)                15             17           5          6.8         146.1       0.9X
+1 x 1 deep x 100000 rows (read parquet)               17             19           4          6.0         165.9       0.8X
+1 x 1 deep x 100000 rows (write parquet)              86             92           7          1.2         860.9       0.2X
+128 x 8 deep x 1000 rows (read in-mem)                12             14           3          8.1         123.2       1.1X
+128 x 8 deep x 1000 rows (exec in-mem)                14             16           4          7.3         136.2       1.0X
+128 x 8 deep x 1000 rows (read parquet)               20             23           5          5.0         199.1       0.7X
+128 x 8 deep x 1000 rows (write parquet)              86             95           8          1.2         856.3       0.2X
+1024 x 11 deep x 100 rows (read in-mem)               16             17           4          6.4         155.6       0.8X
+1024 x 11 deep x 100 rows (exec in-mem)               17             19           4          5.9         168.9       0.8X
+1024 x 11 deep x 100 rows (read parquet)              33             36           5          3.0         332.3       0.4X
+1024 x 11 deep x 100 rows (write parquet)             88             96          10          1.1         882.3       0.1X
+
+
+================================================================================================
+wide array field read and write
+================================================================================================
+
+OpenJDK 64-Bit Server VM 21.0.6+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+wide array field r/w:                     Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+1 wide x 100000 rows (read in-mem)                   14             17           4          7.1         141.8       1.0X
+1 wide x 100000 rows (exec in-mem)                   17             19           3          6.0         165.4       0.9X
+1 wide x 100000 rows (read parquet)                  17             20           5          6.0         167.8       0.8X
+1 wide x 100000 rows (write parquet)                 86             92           8          1.2         864.3       0.2X
+100 wide x 1000 rows (read in-mem)                   11             13           3          9.4         106.4       1.3X
+100 wide x 1000 rows (exec in-mem)                   12             14           4          8.3         120.9       1.2X
+100 wide x 1000 rows (read parquet)                  16             18           4          6.1         162.9       0.9X
+100 wide x 1000 rows (write parquet)                 83             90           8          1.2         828.0       0.2X
+2500 wide x 40 rows (read in-mem)                    10             12           3          9.6         104.1       1.4X
+2500 wide x 40 rows (exec in-mem)                    12             14           4          8.4         119.2       1.2X
+2500 wide x 40 rows (read parquet)                   16             18           3          6.2         160.2       0.9X
+2500 wide x 40 rows (write parquet)                  83             90           7          1.2         829.3       0.2X
+
+
+================================================================================================
+wide map field read and write
+================================================================================================
+
+OpenJDK 64-Bit Server VM 21.0.6+7-LTS on Linux 6.8.0-1020-azure
+AMD EPYC 7763 64-Core Processor
+wide map field r/w:                       Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+1 wide x 100000 rows (read in-mem)                   12             14           3          8.4         119.2       1.0X
+1 wide x 100000 rows (exec in-mem)                   16             18           3          6.2         160.3       0.7X
+1 wide x 100000 rows (read parquet)                  20             23           5          4.9         202.6       0.6X
+1 wide x 100000 rows (write parquet)                 84             91           8          1.2         842.3       0.1X
+100 wide x 1000 rows (read in-mem)                    7              8           2         13.6          73.5       1.6X
+100 wide x 1000 rows (exec in-mem)                    9             10           3         10.9          91.7       1.3X
+100 wide x 1000 rows (read parquet)                  18             21           5          5.6         177.1       0.7X
+100 wide x 1000 rows (write parquet)                 79             85           7          1.3         792.1       0.2X
+2500 wide x 40 rows (read in-mem)                     9             10           2         11.0          91.0       1.3X
+2500 wide x 40 rows (exec in-mem)                    11             12           3          9.2         108.4       1.1X
+2500 wide x 40 rows (read parquet)                   19             21           4          5.3         190.1       0.6X
+2500 wide x 40 rows (write parquet)                  84             93           7          1.2         842.0       0.1X
+
+

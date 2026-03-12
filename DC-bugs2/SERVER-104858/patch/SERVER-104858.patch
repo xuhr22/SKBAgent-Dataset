@@ -1,0 +1,27 @@
+From 2fbf344a4fc929cf126b94b8765bd20d5bacd95d Mon Sep 17 00:00:00 2001
+From: Tommaso Tocci <58224719+toto-dev@users.noreply.github.com>
+Date: Thu, 8 May 2025 08:28:26 +0200
+Subject: [PATCH] SERVER-104858 acquireCollectionWithBucketsLookup does not use
+ consistent collection snapshots (#35883)
+
+GitOrigin-RevId: a1a79a1114122f839886f54582d990e12ef1fc05
+---
+ src/mongo/db/timeseries/catalog_helper.cpp | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/mongo/db/timeseries/catalog_helper.cpp b/src/mongo/db/timeseries/catalog_helper.cpp
+index 033d132472012..8d94ec7fed10f 100644
+--- a/src/mongo/db/timeseries/catalog_helper.cpp
++++ b/src/mongo/db/timeseries/catalog_helper.cpp
+@@ -180,8 +180,9 @@ std::pair<CollectionAcquisition, bool> acquireCollectionWithBucketsLookup(
+         if (!acq->collectionExists() && originNssOrUUID.isNamespaceString() &&
+             !originNssOrUUID.nss().isTimeseriesBucketsCollection()) {
+             auto bucketsNss = originNssOrUUID.nss().makeTimeseriesBucketsNamespace();
+-            auto bucketsCollExists = static_cast<bool>(
+-                CollectionCatalog::get(opCtx)->lookupCollectionByNamespace(opCtx, bucketsNss));
++            auto bucketsCollExists =
++                static_cast<bool>(CollectionCatalog::get(opCtx)->establishConsistentCollection(
++                    opCtx, bucketsNss, boost::none /* readTimestamp */));
+             if (bucketsCollExists) {
+                 auto bucketsAcquisitionReq = CollectionAcquisitionRequest::fromOpCtx(
+                     opCtx, bucketsNss, acquisitionReq.operationType);

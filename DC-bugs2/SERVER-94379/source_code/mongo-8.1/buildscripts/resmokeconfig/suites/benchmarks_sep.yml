@@ -1,0 +1,11 @@
+# This benchmark measures the cost of running the command execution path.
+test_kind: benchmark_test
+
+selector:
+  root: build/sep_bm.txt
+
+executor:
+  config: {}
+  hooks:
+    - class: GenerateAndCheckPerfResults
+      check_result: True

@@ -1,0 +1,13 @@
+# -*- mode: python; -*-
+
+Import("env")
+Import("wiredtiger")
+
+env = env.Clone()
+
+if wiredtiger:
+    env.CppUnitTest(
+        target="index_builds_test",
+        source=[],
+        LIBDEPS=[],
+    )

@@ -1,0 +1,9 @@
+test_kind: benchmark_test
+
+selector:
+  root: build/repl_bm.txt
+
+executor:
+  config: {}
+  hooks:
+    - class: GenerateAndCheckPerfResults

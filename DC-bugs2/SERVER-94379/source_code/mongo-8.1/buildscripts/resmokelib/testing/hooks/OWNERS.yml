@@ -1,0 +1,19 @@
+version: 1.0.0
+options:
+  no_parent_owners: true
+filters:
+  - "analyze_shard_key.py":
+    approvers:
+      - 10gen/server-cluster-scalability
+  - "queryable_server_hook.py":
+    approvers:
+      - 10gen/server-backup-restore
+  - "change_streams.py":
+    approvers:
+      - 10gen/query-execution-change-streams
+  - "enable_change_stream.py":
+    approvers:
+      - 10gen/query-execution-change-streams
+  - "run_query_stats.py":
+    approvers:
+      - 10gen/query-integration-query-stats

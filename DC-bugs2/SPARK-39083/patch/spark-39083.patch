@@ -1,0 +1,87 @@
+From 114b6fbb7f79b10af8290443184cddb511b9e73a Mon Sep 17 00:00:00 2001
+From: "tan.vu" <tan.vu@linecorp.com>
+Date: Mon, 2 May 2022 14:39:34 +0900
+Subject: [PATCH 1/5] SPARK-39083 : fix race condition between update and clean
+ app data
+
+---
+ .../deploy/history/FsHistoryProvider.scala    | 60 ++++++++++---------
+ 1 file changed, 31 insertions(+), 29 deletions(-)
+
+diff --git a/core/src/main/scala/org/apache/spark/deploy/history/FsHistoryProvider.scala b/core/src/main/scala/org/apache/spark/deploy/history/FsHistoryProvider.scala
+index e1b4104eb77b..4c73cd0ad6f7 100644
+--- a/core/src/main/scala/org/apache/spark/deploy/history/FsHistoryProvider.scala
++++ b/core/src/main/scala/org/apache/spark/deploy/history/FsHistoryProvider.scala
+@@ -630,41 +630,43 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
+   }
+ 
+   private def cleanAppData(appId: String, attemptId: Option[String], logPath: String): Unit = {
+-    try {
+-      val app = load(appId)
+-      val (attempt, others) = app.attempts.partition(_.info.attemptId == attemptId)
+-
+-      assert(attempt.isEmpty || attempt.size == 1)
+-      val isStale = attempt.headOption.exists { a =>
+-        if (a.logPath != new Path(logPath).getName()) {
+-          // If the log file name does not match, then probably the old log file was from an
+-          // in progress application. Just return that the app should be left alone.
+-          false
+-        } else {
+-          val maybeUI = synchronized {
+-            activeUIs.remove(appId -> attemptId)
+-          }
++    listing.synchronized {
++      try {
++        val app = load(appId)
++        val (attempt, others) = app.attempts.partition(_.info.attemptId == attemptId)
++
++        assert(attempt.isEmpty || attempt.size == 1)
++        val isStale = attempt.headOption.exists { a =>
++          if (a.logPath != new Path(logPath).getName()) {
++            // If the log file name does not match, then probably the old log file was from an
++            // in progress application. Just return that the app should be left alone.
++            false
++          } else {
++            val maybeUI = synchronized {
++              activeUIs.remove(appId -> attemptId)
++            }
+ 
+-          maybeUI.foreach { ui =>
+-            ui.invalidate()
+-            ui.ui.store.close()
+-          }
++            maybeUI.foreach { ui =>
++              ui.invalidate()
++              ui.ui.store.close()
++            }
+ 
+-          diskManager.foreach(_.release(appId, attemptId, delete = true))
+-          true
++            diskManager.foreach(_.release(appId, attemptId, delete = true))
++            true
++          }
+         }
+-      }
+ 
+-      if (isStale) {
+-        if (others.nonEmpty) {
+-          val newAppInfo = new ApplicationInfoWrapper(app.info, others)
+-          listing.write(newAppInfo)
+-        } else {
+-          listing.delete(classOf[ApplicationInfoWrapper], appId)
++        if (isStale) {
++          if (others.nonEmpty) {
++            val newAppInfo = new ApplicationInfoWrapper(app.info, others)
++            listing.write(newAppInfo)
++          } else {
++            listing.delete(classOf[ApplicationInfoWrapper], appId)
++          }
+         }
++      } catch {
++        case _: NoSuchElementException =>
+       }
+-    } catch {
+-      case _: NoSuchElementException =>
+     }
+   }
+ 

@@ -1,0 +1,140 @@
+version: 1.0.0
+filters:
+  # Code in the generic "query" is owned by the entire query team by default. However, this should
+  # largely be broken down into components where the source code for these components resides in
+  # subdirectories owned by a particular subteam such as QO, QE, or QI.
+  - "*":
+    approvers:
+      - 10gen/query
+  - "OWNERS.yml":
+    approvers:
+      - 10gen/query-execution-staff-leads
+      - 10gen/query-optimization-staff-leads
+      - 10gen/query-integration-staff-leads
+  - "analyze*":
+    approvers:
+      - 10gen/query-optimization
+  - "collection_index_usage_tracker*":
+    approvers:
+      - 10gen/query-execution-index-access-stats
+  - "collection_query_info*":
+    approvers:
+      - 10gen/query-optimization-plan-cache
+  - "eof_node_type*":
+    approvers:
+      - 10gen/query-optimization
+  - "explain*":
+    approvers:
+      - 10gen/query-optimization-explain
+  - "expression_walker*":
+    approvers:
+      - 10gen/query-optimization-logical-models
+  - "index_bounds.*":
+    approvers:
+      - 10gen/query-optimization-planner
+  - "indexability*":
+    approvers:
+      - 10gen/query-optimization-planner
+  - "plan_summary_stats*":
+    approvers:
+      - 10gen/query-execution
+  - "*query_settings*":
+    approvers:
+      - 10gen/query-execution-query-settings
+  - "mock_yield_policies.h":
+    approvers:
+      - 10gen/query-execution-yielding
+  - "*yield_policy*":
+    approvers:
+      - 10gen/query-execution-yielding
+  - "*plan_executor*":
+    approvers:
+      - 10gen/query-execution-classic-engine
+  - "plan_insert_listener*":
+    approvers:
+      - 10gen/query-execution-classic-engine
+  - "sbe*":
+    approvers:
+      - 10gen/query-execution-sbe
+  - "*geo*":
+    approvers:
+      - 10gen/query-integration-geo
+  - "plan_explainer*":
+    approvers:
+      - 10gen/query-optimization-explain
+  - "bind_input_params*":
+    approvers:
+      - 10gen/query-optimization-plan-cache
+  - "interval_evaluation_tree*":
+    approvers:
+      - 10gen/query-optimization-plan-cache
+  - "partitioned_cache.h":
+    approvers:
+      - 10gen/query-optimization-plan-cache
+  - "canonical_query*":
+    approvers:
+      - 10gen/query-optimization-logical-models
+  - "canonical_query_encoder*":
+    approvers:
+      - 10gen/query-optimization-plan-cache
+  - "plan_rank*":
+    approvers:
+      - 10gen/query-optimization-runtime-planners
+  - "*.idl":
+    approvers:
+      - 10gen/query-optimization-parsers
+  - "query_feature_flags.idl":
+    approvers:
+      # Almost every project will create and adjust a feature flag.
+      # These changes are typically straightforward so they don't need
+      # an extra review from query-optimization-parsers; anyone on query
+      # can approve these changes.
+      - 10gen/query
+  - "projection_parser*":
+    approvers:
+      - 10gen/query-optimization-parsers
+  - "hint_parser*":
+    approvers:
+      - 10gen/query-optimization-parsers
+  - "parsed*":
+    approvers:
+      - 10gen/query-optimization-parsers
+  - "canonical_distinct*":
+    approvers:
+      - 10gen/query-optimization-logical-models
+  - "projection_ast*":
+    approvers:
+      - 10gen/query-optimization-logical-models
+  - "projection_policies.h":
+    approvers:
+      - 10gen/query-optimization-logical-models
+  - "projection_test.cpp":
+    approvers:
+      - 10gen/query-optimization-logical-models
+  - "projection.*":
+    approvers:
+      - 10gen/query-optimization-logical-models
+  - "sort_pattern*":
+    approvers:
+      - 10gen/query-optimization-logical-models
+  - "query_planner*":
+    approvers:
+      - 10gen/query-optimization-planner
+  - "query_solution*":
+    approvers:
+      - 10gen/query-optimization-planner
+  - "planner*":
+    approvers:
+      - 10gen/query-optimization-planner
+  - "interval.*":
+    approvers:
+      - 10gen/query-optimization-planner
+  - "interval_test.*":
+    approvers:
+      - 10gen/query-optimization-planner
+  - "index_tag*":
+    approvers:
+      - 10gen/query-optimization-planner
+  - "index_bounds_builder*":
+    approvers:
+      - 10gen/query-optimization-planner

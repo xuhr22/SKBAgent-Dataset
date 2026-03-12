@@ -1,0 +1,44 @@
+From 9a02bffe6d293d26167fd88561f199eb8f62702c Mon Sep 17 00:00:00 2001
+From: "Timothy St. Clair" <tstclair@redhat.com>
+Date: Wed, 27 Jul 2016 14:13:28 -0500
+Subject: [PATCH] Update acquire to use newer JitterUntil vs. sleep with 0
+ timer which may have caused a race in Until.
+
+---
+ pkg/client/leaderelection/OWNERS            | 1 +
+ pkg/client/leaderelection/leaderelection.go | 5 ++---
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/pkg/client/leaderelection/OWNERS b/pkg/client/leaderelection/OWNERS
+index ac1004ec6c1a1..7ff5b3ed94ff8 100644
+--- a/pkg/client/leaderelection/OWNERS
++++ b/pkg/client/leaderelection/OWNERS
+@@ -1,2 +1,3 @@
+ assignees:
+   - mikedanese
++  - timothysc
+diff --git a/pkg/client/leaderelection/leaderelection.go b/pkg/client/leaderelection/leaderelection.go
+index ac8d8967a6bf1..f69de06f6ff71 100644
+--- a/pkg/client/leaderelection/leaderelection.go
++++ b/pkg/client/leaderelection/leaderelection.go
+@@ -203,18 +203,17 @@ func (le *LeaderElector) IsLeader() bool {
+ // acquire loops calling tryAcquireOrRenew and returns immediately when tryAcquireOrRenew succeeds.
+ func (le *LeaderElector) acquire() {
+ 	stop := make(chan struct{})
+-	wait.Until(func() {
++	wait.JitterUntil(func() {
+ 		succeeded := le.tryAcquireOrRenew()
+ 		le.maybeReportTransition()
+ 		if !succeeded {
+ 			glog.V(4).Infof("failed to renew lease %v/%v", le.config.EndpointsMeta.Namespace, le.config.EndpointsMeta.Name)
+-			time.Sleep(wait.Jitter(le.config.RetryPeriod, JitterFactor))
+ 			return
+ 		}
+ 		le.config.EventRecorder.Eventf(&api.Endpoints{ObjectMeta: le.config.EndpointsMeta}, api.EventTypeNormal, "%v became leader", le.config.Identity)
+ 		glog.Infof("sucessfully acquired lease %v/%v", le.config.EndpointsMeta.Namespace, le.config.EndpointsMeta.Name)
+ 		close(stop)
+-	}, 0, stop)
++	}, le.config.RetryPeriod, JitterFactor, true, stop)
+ }
+ 
+ // renew loops calling tryAcquireOrRenew and returns immediately when tryAcquireOrRenew fails.

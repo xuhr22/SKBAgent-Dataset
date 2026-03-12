@@ -1,0 +1,107 @@
+From d1a9e68d581f8e3162bc790bdb30986b8d030d86 Mon Sep 17 00:00:00 2001
+From: Wenbin Zhu <wenbin.zhu@mongodb.com>
+Date: Fri, 3 Sep 2021 23:06:13 +0000
+Subject: [PATCH] SERVER-59226 Fix deadlock between uninterruptible profiling
+ operation and stepdown thread.
+
+(cherry picked from commit 43479818bd01f27ee25b6e992045529d2ac0185a)
+---
+ src/mongo/db/introspect.cpp        | 28 ++++++++++++++++++++--------
+ src/mongo/db/operation_context.cpp | 17 ++++++++++++++++-
+ src/mongo/db/operation_context.h   | 11 +++++++++++
+ 3 files changed, 47 insertions(+), 9 deletions(-)
+
+diff --git a/src/mongo/db/introspect.cpp b/src/mongo/db/introspect.cpp
+index 8bda25434262f..78ae238a239ee 100644
+--- a/src/mongo/db/introspect.cpp
++++ b/src/mongo/db/introspect.cpp
+@@ -50,9 +50,9 @@
+ 
+ namespace mongo {
+ 
+ using std::endl;
+ using std::string;
++using std::unique_ptr;
+ 
+@@ -117,20 +117,32 @@ void profile(OperationContext* opCtx, NetworkOp op) {
+ 
+     const string dbName(nsToDatabase(CurOp::get(opCtx)->getNS()));
+ 
++    // True if we need to acquire an X lock on the database in order to create the system.profile
++    // collection.
++    bool acquireDbXLock = false;
++
+     try {
+-        // Even if the operation we are profiling was interrupted, we still want to output the
+-        // profiler entry.  This lock guard will prevent lock acquisitions from throwing exceptions
+-        // before we finish writing the entry. However, our maximum lock timeout overrides
+-        // uninterruptibility.
+-        boost::optional<UninterruptibleLockGuard> noInterrupt;
++        // Set the opCtx to be only interruptible for replication state changes. This is needed
++        // because for some operations that are already marked as killed due to errors such as
++        // operation time exceeding maxTimeMS, we still want to output the profiler entry. Thus
++        // in these cases we do not interrupt lock acquisition even though the opCtx has already
++        // been killed. In the meantime we need to make sure replication state changes can still
++        // interrupt lock acquisition, otherwise there could be deadlocks when the state change
++        // thread is waiting for the session checked out by this opCtx while holding RSTL lock.
++        // However when maxLockTimeout is set, we want it to be always interruptible.
+         if (!opCtx->lockState()->hasMaxLockTimeout()) {
+-            noInterrupt.emplace(opCtx->lockState());
++            opCtx->setIgnoreInterruptsExceptForReplStateChange(true);
+         }
+
+diff --git a/src/mongo/db/operation_context.cpp b/src/mongo/db/operation_context.cpp
+index 02a3b1226d539..3775b73a82ff1 100644
+--- a/src/mongo/db/operation_context.cpp
++++ b/src/mongo/db/operation_context.cpp
+@@ -196,6 +196,14 @@ bool opShouldFail(Client* client, const BSONObj& failPointInfo) {
+ }  // namespace
+ 
+ Status OperationContext::checkForInterruptNoAssert() {
++    const auto killStatus = getKillStatus();
++
++    if (_ignoreInterruptsExceptForReplStateChange &&
++        killStatus != ErrorCodes::InterruptedDueToReplStateChange &&
++        !_killRequestedForReplStateChange.loadRelaxed()) {
++        return Status::OK();
++    }
++
+     // TODO: Remove the MONGO_likely(getClient()) once all operation contexts are constructed with
+     // clients.
+@@ -215,7 +223,6 @@ Status OperationContext::checkForInterruptNoAssert() {
+         }
+     }
+ 
+-    const auto killStatus = getKillStatus();
+     if (killStatus != ErrorCodes::OK) {
+         return Status(killStatus, "operation was interrupted");
+     }
+diff --git a/src/mongo/db/operation_context.h b/src/mongo/db/operation_context.h
+index 4a9bc116da464..a2eacc1e7005c 100644
+--- a/src/mongo/db/operation_context.h
++++ b/src/mongo/db/operation_context.h
+@@ -432,6 +432,14 @@ class OperationContext : public Decorable<OperationContext> {
+      */
+     Microseconds getRemainingMaxTimeMicros() const;
+ 
++    /**
++     * Sets that this operation should ignore interruption except for replication state change. Can
++     * only be called by the thread executing this on behalf of this OperationContext.
++     */
++    void setIgnoreInterruptsExceptForReplStateChange(bool target) {
++        _ignoreInterruptsExceptForReplStateChange = target;
++    }
++
+ private:
+     /**
+      * Returns true if this operation has a deadline and it has passed according to the fast clock
+@@ -521,6 +529,9 @@ class OperationContext : public Decorable<OperationContext> {
+     Timer _elapsedTime;
+ 
+     bool _writesAreReplicated = true;
++
++    bool _ignoreInterruptsExceptForReplStateChange = false;
++    AtomicWord<bool> _killRequestedForReplStateChange{false};
+ };
+ 
+ namespace repl {
