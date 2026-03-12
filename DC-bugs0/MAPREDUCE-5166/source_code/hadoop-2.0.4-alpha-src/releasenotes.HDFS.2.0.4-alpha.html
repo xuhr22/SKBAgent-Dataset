@@ -1,0 +1,56 @@
+<META http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Hadoop HDFS 2.0.4-alpha Release Notes</title>
+<STYLE type="text/css">
+	H1 {font-family: sans-serif}
+	H2 {font-family: sans-serif; margin-left: 7mm}
+	TABLE {margin-left: 7mm}
+</STYLE>
+</head>
+<body>
+<h1>Hadoop HDFS 2.0.4-alpha Release Notes</h1>
+These release notes include new developer and user-facing incompatibilities, features, and major improvements. 
+<a name="changes"/>
+<h2>Changes since Hadoop 2.0.3-alpha</h2>
+<ul>
+<li> <a href="https://issues.apache.org/jira/browse/HDFS-4649">HDFS-4649</a>.
+     Blocker bug reported by Daryn Sharp and fixed by Daryn Sharp (namenode , security , webhdfs)<br>
+     <b>Webhdfs cannot list large directories</b><br>
+     <blockquote></blockquote></li>
+<li> <a href="https://issues.apache.org/jira/browse/HDFS-4646">HDFS-4646</a>.
+     Minor bug reported by Jagane Sundar and fixed by  (namenode)<br>
+     <b>createNNProxyWithClientProtocol ignores configured timeout value</b><br>
+     <blockquote></blockquote></li>
+<li> <a href="https://issues.apache.org/jira/browse/HDFS-4581">HDFS-4581</a>.
+     Major bug reported by Rohit Kochar and fixed by Rohit Kochar (datanode)<br>
+     <b>DataNode#checkDiskError should not be called on network errors</b><br>
+     <blockquote></blockquote></li>
+<li> <a href="https://issues.apache.org/jira/browse/HDFS-4577">HDFS-4577</a>.
+     Major sub-task reported by Daryn Sharp and fixed by Daryn Sharp (webhdfs)<br>
+     <b>Webhdfs operations should declare if authentication is required</b><br>
+     <blockquote></blockquote></li>
+<li> <a href="https://issues.apache.org/jira/browse/HDFS-4571">HDFS-4571</a>.
+     Major bug reported by Alejandro Abdelnur and fixed by Alejandro Abdelnur (webhdfs)<br>
+     <b>WebHDFS should not set the service hostname on the server side</b><br>
+     <blockquote></blockquote></li>
+<li> <a href="https://issues.apache.org/jira/browse/HDFS-4567">HDFS-4567</a>.
+     Major sub-task reported by Daryn Sharp and fixed by Daryn Sharp (webhdfs)<br>
+     <b>Webhdfs does not need a token for token operations</b><br>
+     <blockquote></blockquote></li>
+<li> <a href="https://issues.apache.org/jira/browse/HDFS-4566">HDFS-4566</a>.
+     Major sub-task reported by Daryn Sharp and fixed by Daryn Sharp (webhdfs)<br>
+     <b>Webdhfs token cancelation should use authentication</b><br>
+     <blockquote></blockquote></li>
+<li> <a href="https://issues.apache.org/jira/browse/HDFS-4560">HDFS-4560</a>.
+     Major sub-task reported by Daryn Sharp and fixed by Daryn Sharp (webhdfs)<br>
+     <b>Webhdfs cannot use tokens obtained by another user</b><br>
+     <blockquote></blockquote></li>
+<li> <a href="https://issues.apache.org/jira/browse/HDFS-4548">HDFS-4548</a>.
+     Blocker sub-task reported by Daryn Sharp and fixed by Daryn Sharp <br>
+     <b>Webhdfs doesn't renegotiate SPNEGO token</b><br>
+     <blockquote></blockquote></li>
+<li> <a href="https://issues.apache.org/jira/browse/HDFS-3344">HDFS-3344</a>.
+     Major bug reported by Tsz Wo (Nicholas), SZE and fixed by Kihwal Lee (namenode)<br>
+     <b>Unreliable corrupt blocks counting in TestProcessCorruptBlocks</b><br>
+     <blockquote></blockquote></li>
+</ul>
+</body></html>

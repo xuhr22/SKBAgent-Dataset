@@ -1,0 +1,480 @@
+Index: src/main/java/org/apache/hadoop/hbase/regionserver/HRegionServer.java
+===================================================================
+--- src/main/java/org/apache/hadoop/hbase/regionserver/HRegionServer.java	(date 1299110957000)
++++ src/main/java/org/apache/hadoop/hbase/regionserver/HRegionServer.java	(revision )
+@@ -34,6 +34,7 @@
+ import java.util.Collections;
+ import java.util.Comparator;
+ import java.util.HashMap;
++import java.util.concurrent.CopyOnWriteArrayList;
+ import java.util.HashSet;
+ import java.util.Iterator;
+ import java.util.LinkedList;
+@@ -43,12 +44,12 @@
+ import java.util.Set;
+ import java.util.SortedMap;
+ import java.util.TreeMap;
+-import java.util.concurrent.ConcurrentHashMap;
+ import java.util.concurrent.LinkedBlockingQueue;
+ import java.util.concurrent.TimeUnit;
+ import java.util.concurrent.atomic.AtomicBoolean;
+ import java.util.concurrent.atomic.AtomicInteger;
+ import java.util.concurrent.locks.ReentrantReadWriteLock;
++import java.util.concurrent.ConcurrentHashMap;
+ 
+ import org.apache.commons.logging.Log;
+ import org.apache.commons.logging.LogFactory;
+@@ -175,11 +176,11 @@
+   private final Random rand = new Random();
+ 
+   /**
+-   * Map of regions currently being served by this region server. Key is the
+-   * encoded region name.  All access should be synchronized.
++   * List of regions currently being served by this region server.
++   *
+    */
+-  protected final Map<String, HRegion> onlineRegions =
+-    new HashMap<String, HRegion>();
++  protected final List<HRegion> onlineRegions =
++    new CopyOnWriteArrayList<HRegion>();
+ 
+   protected final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+   private final LinkedBlockingQueue<HMsg> outboundMsgs = new LinkedBlockingQueue<HMsg>();
+@@ -681,12 +682,10 @@
+ 
+   String getOnlineRegionsAsPrintableString() {
+     StringBuilder sb = new StringBuilder();
+-    synchronized (this.onlineRegions) {
+-      for (HRegion r: this.onlineRegions.values()) {
++    for (HRegion r: this.onlineRegions) {
+-        if (sb.length() > 0) sb.append(", ");
+-        sb.append(r.getRegionInfo().getEncodedName());
+-      }
++      if (sb.length() > 0) sb.append(", ");
++      sb.append(r.getRegionInfo().getEncodedName());
++    }
+-    }
+     return sb.toString();
+   }
+ 
+@@ -705,11 +704,9 @@
+         // Only print out regions still closing if a small number else will
+         // swamp the log.
+         if (count < 10 && LOG.isDebugEnabled()) {
+-          synchronized (this.onlineRegions) {
+-            LOG.debug(this.onlineRegions);
+-          }
+-        }
++          LOG.debug(this.onlineRegions);
++        }
++      }
+-      }
+       Threads.sleep(1000);
+     }
+   }
+@@ -749,11 +746,9 @@
+     HServerLoad hsl = new HServerLoad(requestCount.get(),
+       (int)(memory.getUsed() / 1024 / 1024),
+       (int) (memory.getMax() / 1024 / 1024));
+-    synchronized (this.onlineRegions) {
+-      for (HRegion r : this.onlineRegions.values()) {
++    for (HRegion r : this.onlineRegions) {
+-        hsl.addRegionInfo(createRegionLoad(r));
+-      }
++      hsl.addRegionInfo(createRegionLoad(r));
++    }
+-    }
+     return hsl;
+   }
+ 
+@@ -914,12 +909,13 @@
+    * @throws IOException
+    */
+   public HServerLoad.RegionLoad createRegionLoad(final String encodedRegionName) {
+-    HRegion r = null;
+-    synchronized (this.onlineRegions) {
+-      r = this.onlineRegions.get(encodedRegionName);
+-    }
++    for (HRegion r : this.onlineRegions) {
++      if (r.getRegionInfo().getEncodedName().equals(encodedRegionName)) {
+-    return createRegionLoad(r);
+-  }
++        return createRegionLoad(r);
++      }
++    }
++    return null;
++  }
+ 
+   /*
+    * Cleanup after Throwable caught invoking method. Converts <code>t</code> to
+@@ -1034,21 +1030,19 @@
+ 
+     @Override
+     protected void chore() {
+-      synchronized (this.instance.onlineRegions) {
+-        for (HRegion r : this.instance.onlineRegions.values()) {
++      for (HRegion r : this.instance.onlineRegions) {
+-          try {
+-            if (r != null && r.isMajorCompaction()) {
+-              // Queue a compaction. Will recognize if major is needed.
+-              this.instance.compactSplitThread.requestCompaction(r, getName()
+-                + " requests major compaction");
+-            }
+-          } catch (IOException e) {
+-            LOG.warn("Failed major compaction check on " + r, e);
+-          }
+-        }
+-      }
+-    }
++        try {
++          if (r != null && r.isMajorCompaction()) {
++            // Queue a compaction. Will recognize if major is needed.
++            this.instance.compactSplitThread.requestCompaction(r, getName()
++              + " requests major compaction");
++          }
++        } catch (IOException e) {
++          LOG.warn("Failed major compaction check on " + r, e);
++        }
++      }
++    }
++  }
+-  }
+ 
+   /**
+    * Report the status of the server. A server is online once all the startup is
+@@ -1145,9 +1139,7 @@
+     int storefiles = 0;
+     long memstoreSize = 0;
+     long storefileIndexSize = 0;
+-    synchronized (this.onlineRegions) {
+-      for (Map.Entry<String, HRegion> e : this.onlineRegions.entrySet()) {
+-        HRegion r = e.getValue();
++    for (HRegion r : this.onlineRegions) {
+         memstoreSize += r.memstoreSize.get();
+         synchronized (r.stores) {
+           stores += r.stores.size();
+@@ -1157,8 +1149,7 @@
+             storefileIndexSize += store.getStorefilesIndexSize();
+           }
+         }
+-      }
++    }
+-    }
+     this.metrics.stores.set(stores);
+     this.metrics.storefiles.set(storefiles);
+     this.metrics.memstoreSizeMB.set((int) (memstoreSize / (1024 * 1024)));
+@@ -1536,17 +1527,15 @@
+     HRegion root = null;
+     this.lock.writeLock().lock();
+     try {
+-      synchronized (this.onlineRegions) {
+-        for (Map.Entry<String, HRegion> e: onlineRegions.entrySet()) {
+-          HRegionInfo hri = e.getValue().getRegionInfo();
++      for (HRegion r : onlineRegions) {
++        HRegionInfo hri = r.getRegionInfo();
+-          if (hri.isRootRegion()) {
++        if (hri.isRootRegion()) {
+-            root = e.getValue();
++          root = r;
+-          } else if (hri.isMetaRegion()) {
++        } else if (hri.isMetaRegion()) {
+-            meta = e.getValue();
++          meta = r;
+-          }
+-          if (meta != null && root != null) break;
+-        }
++        }
++        if (meta != null && root != null) break;
++      }
+-      }
+     } finally {
+       this.lock.writeLock().unlock();
+     }
+@@ -1561,15 +1550,12 @@
+   void closeUserRegions(final boolean abort) {
+     this.lock.writeLock().lock();
+     try {
+-      synchronized (this.onlineRegions) {
+-        for (Map.Entry<String, HRegion> e: this.onlineRegions.entrySet()) {
+-          HRegion r = e.getValue();
++      for (HRegion r : this.onlineRegions) {
+-          if (!r.getRegionInfo().isMetaRegion()) {
+-            // Don't update zk with this close transition; pass false.
+-            closeRegion(r.getRegionInfo(), abort, false);
+-          }
+-        }
++        if (!r.getRegionInfo().isMetaRegion()) {
++          // Don't update zk with this close transition; pass false.
++          closeRegion(r.getRegionInfo(), abort, false);
++        }
++      }
+-      }
+     } finally {
+       this.lock.writeLock().unlock();
+     }
+@@ -2114,20 +2100,27 @@
+     return closeRegion(region, true);
+   }
+ 
++  private boolean hasRegion(String encodedRegionName) {
++    for (HRegion r : this.onlineRegions) {
++      if (r.getRegionInfo().getEncodedName().equals(encodedRegionName)) {
++        return true;
++      }
++    }
++    return false;
++  }
++
+   @Override
+   @QosPriority(priority=HIGH_QOS)
+   public boolean closeRegion(HRegionInfo region, final boolean zk)
+   throws NotServingRegionException {
+     LOG.info("Received close region: " + region.getRegionNameAsString());
+-    synchronized (this.onlineRegions) {
+-      boolean hasit = this.onlineRegions.containsKey(region.getEncodedName());
++    boolean hasit = hasRegion(region.getEncodedName());
+-      if (!hasit) {
+-        LOG.warn("Received close for region we are not serving; " +
+-          region.getEncodedName());
+-        throw new NotServingRegionException("Received close for "
+-          + region.getRegionNameAsString() + " but we are not serving it");
+-      }
++    if (!hasit) {
++      LOG.warn("Received close for region we are not serving; " +
++        region.getEncodedName());
++      throw new NotServingRegionException("Received close for "
++        + region.getRegionNameAsString() + " but we are not serving it");
++    }
+-    }
+     return closeRegion(region, false, zk);
+   }
+ 
+@@ -2228,28 +2221,22 @@
+   @QosPriority(priority=HIGH_QOS)
+   public List<HRegionInfo> getOnlineRegions() {
+     List<HRegionInfo> list = new ArrayList<HRegionInfo>();
+-    synchronized(this.onlineRegions) {
+-      for (Map.Entry<String,HRegion> e: this.onlineRegions.entrySet()) {
+-        list.add(e.getValue().getRegionInfo());
++    for (HRegion r: this.onlineRegions) {
++      list.add(r.getRegionInfo());
+-      }
++    }
+-    }
+     Collections.sort(list);
+     return list;
+   }
+ 
+   public int getNumberOfOnlineRegions() {
+     int size = -1;
+-    synchronized (this.onlineRegions) {
+-      size = this.onlineRegions.size();
++    size = this.onlineRegions.size();
+-    }
+     return size;
+   }
+ 
+   boolean isOnlineRegionsEmpty() {
+-    synchronized (this.onlineRegions) {
+-      return this.onlineRegions.isEmpty();
+-    }
++    return this.onlineRegions.isEmpty();
++  }
+-  }
+ 
+   /**
+    * For tests and web ui.
+@@ -2258,36 +2245,29 @@
+    * @see #getOnlineRegions()
+    */
+   public Collection<HRegion> getOnlineRegionsLocalContext() {
+-    synchronized (this.onlineRegions) {
+-      Collection<HRegion> regions = this.onlineRegions.values();
+-      return Collections.unmodifiableCollection(regions);
++    //Collection<HRegion> regions = this.onlineRegions.values();
++    return Collections.unmodifiableCollection(this.onlineRegions);
+-    }
++  }
+-  }
+ 
+   @Override
+   public void addToOnlineRegions(HRegion region) {
+-    lock.writeLock().lock();
+-    try {
+-      synchronized (this.onlineRegions) {
+-        this.onlineRegions.put(region.getRegionInfo().getEncodedName(), region);
++    this.onlineRegions.add(region);
+-      }
++  }
+-    } finally {
+-      lock.writeLock().unlock();
+-    }
+-  }
+ 
+   @Override
+   public boolean removeFromOnlineRegions(final String encodedName) {
+-    this.lock.writeLock().lock();
+     HRegion toReturn = null;
+-    try {
+-      synchronized (this.onlineRegions) {
+-        toReturn = this.onlineRegions.remove(encodedName);
++    boolean deleted = false;
++    Iterator iterator = onlineRegions.iterator();
++    while (iterator.hasNext()) {
++      HRegion r = (HRegion) iterator.next();
++      if (r.getRegionInfo().getEncodedName().equals(encodedName)) {
++        iterator.remove();
++        deleted = true;
++        break;
+       }
+-    } finally {
+-      this.lock.writeLock().unlock();
+     }
+-    return toReturn != null;
++    return deleted;
+   }
+ 
+   /**
+@@ -2303,22 +2283,21 @@
+           }
+         });
+     // Copy over all regions. Regions are sorted by size with biggest first.
+-    synchronized (this.onlineRegions) {
+-      for (HRegion region : this.onlineRegions.values()) {
++    for (HRegion region : this.onlineRegions) {
+-        sortedRegions.put(Long.valueOf(region.memstoreSize.get()), region);
+-      }
++      sortedRegions.put(Long.valueOf(region.memstoreSize.get()), region);
++    }
+-    }
+     return sortedRegions;
+   }
+ 
+   @Override
+   public HRegion getFromOnlineRegions(final String encodedRegionName) {
+-    HRegion r = null;
+-    synchronized (this.onlineRegions) {
+-      r = this.onlineRegions.get(encodedRegionName);
+-    }
++    for (HRegion r : onlineRegions) {
++      if (r.getRegionInfo().getEncodedName().equals(encodedRegionName)) {
+-    return r;
+-  }
++        return r;
++      }
++    }
++    return null;
++  }
+ 
+   /**
+    * @param regionName
+@@ -2350,18 +2329,13 @@
+   protected HRegion getRegion(final byte[] regionName)
+       throws NotServingRegionException {
+     HRegion region = null;
+-    this.lock.readLock().lock();
+-    try {
+-      region = getOnlineRegion(regionName);
+-      if (region == null) {
+-        throw new NotServingRegionException("Region is not online: " +
+-          Bytes.toStringBinary(regionName));
+-      }
+-      return region;
++    region = getOnlineRegion(regionName);
++    if (region == null) {
++      throw new NotServingRegionException("Region is not online: " +
++        Bytes.toStringBinary(regionName));
++    }
++    return region;
+-    } finally {
+-      this.lock.readLock().unlock();
+-    }
++  }
+-  }
+ 
+   /**
+    * Get the top N most loaded regions this server is serving so we can tell the
+@@ -2371,18 +2345,16 @@
+    */
+   protected HRegionInfo[] getMostLoadedRegions() {
+     ArrayList<HRegionInfo> regions = new ArrayList<HRegionInfo>();
+-    synchronized (onlineRegions) {
+-      for (HRegion r : onlineRegions.values()) {
++    for (HRegion r : onlineRegions) {
+-        if (r.isClosed() || r.isClosing()) {
+-          continue;
+-        }
+-        if (regions.size() < numRegionsToReport) {
+-          regions.add(r.getRegionInfo());
+-        } else {
+-          break;
+-        }
+-      }
++      if (r.isClosed() || r.isClosing()) {
++        continue;
++      }
++      if (regions.size() < numRegionsToReport) {
++        regions.add(r.getRegionInfo());
++      } else {
++        break;
++      }
++    }
+-    }
+     return regions.toArray(new HRegionInfo[regions.size()]);
+   }
+ 
+@@ -2407,15 +2379,7 @@
+    */
+   protected Set<HRegion> getRegionsToCheck() {
+     HashSet<HRegion> regionsToCheck = new HashSet<HRegion>();
+-    // TODO: is this locking necessary?
+-    lock.readLock().lock();
+-    try {
+-      synchronized (this.onlineRegions) {
+-        regionsToCheck.addAll(this.onlineRegions.values());
+-      }
+-    } finally {
+-      lock.readLock().unlock();
+-    }
++    regionsToCheck.addAll(this.onlineRegions);
+     // Purge closed regions.
+     for (final Iterator<HRegion> i = regionsToCheck.iterator(); i.hasNext();) {
+       HRegion r = i.next();
+@@ -2450,11 +2414,9 @@
+    */
+   public long getGlobalMemStoreSize() {
+     long total = 0;
+-    synchronized (onlineRegions) {
+-      for (HRegion region : onlineRegions.values()) {
++    for (HRegion region : onlineRegions) {
+-        total += region.memstoreSize.get();
+-      }
++      total += region.memstoreSize.get();
++    }
+-    }
+     return total;
+   }
+ 
+@@ -2552,15 +2514,13 @@
+   }
+ 
+   public HRegionInfo[] getRegionsAssignment() throws IOException {
+-    synchronized (this.onlineRegions) {
+-      HRegionInfo [] regions = new HRegionInfo[getNumberOfOnlineRegions()];
++    HRegionInfo [] regions = new HRegionInfo[getNumberOfOnlineRegions()];
+-      Iterator<HRegion> ite = onlineRegions.values().iterator();
++    Iterator<HRegion> ite = onlineRegions.iterator();
+-      for (int i = 0; ite.hasNext(); i++) {
+-        regions[i] = ite.next().getRegionInfo();
+-      }
+-      return regions;
+-    }
++    for (int i = 0; ite.hasNext(); i++) {
++      regions[i] = ite.next().getRegionInfo();
++    }
++    return regions;
++  }
+-  }
+ 
+   /** {@inheritDoc} */
+   @Override

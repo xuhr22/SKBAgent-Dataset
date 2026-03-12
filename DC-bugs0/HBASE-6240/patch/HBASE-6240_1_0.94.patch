@@ -1,0 +1,19 @@
+Index: src/main/java/org/apache/hadoop/hbase/client/HConnectionManager.java
+===================================================================
+--- src/main/java/org/apache/hadoop/hbase/client/HConnectionManager.java	(revision 1353384)
++++ src/main/java/org/apache/hadoop/hbase/client/HConnectionManager.java	(working copy)
+@@ -634,6 +634,14 @@
+       checkIfBaseNodeAvailable();
+       ServerName sn = null;
+       synchronized (this.masterLock) {
++        try {
++          if (master != null && master.isMasterRunning()) {
++            return master;
++          }
++        } catch (UndeclaredThrowableException ute) {
++          // log, but ignore, the loop below will attempt to reconnect
++          LOG.info("Exception contacting master. Retrying...", ute.getCause());
++        }
+         this.master = null;
+ 
+         for (int tries = 0;

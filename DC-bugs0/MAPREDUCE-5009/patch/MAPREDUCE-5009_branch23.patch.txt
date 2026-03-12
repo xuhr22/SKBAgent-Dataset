@@ -1,0 +1,41 @@
+diff --git hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-app/src/main/java/org/apache/hadoop/mapreduce/v2/app/job/impl/TaskImpl.java hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-app/src/main/java/org/apache/hadoop/mapreduce/v2/app/job/impl/TaskImpl.java
+index d0b8c95..e7f2de5 100644
+--- hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-app/src/main/java/org/apache/hadoop/mapreduce/v2/app/job/impl/TaskImpl.java
++++ hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-app/src/main/java/org/apache/hadoop/mapreduce/v2/app/job/impl/TaskImpl.java
+@@ -848,6 +848,9 @@ public abstract class TaskImpl implements Task, EventHandler<TaskEvent> {
+       if (task.successfulAttempt == null) {
+         task.addAndScheduleAttempt();
+       }
++      if ((task.commitAttempt != null) && (task.commitAttempt == taskAttemptId)) {
++    	task.commitAttempt = null;
++      }
+     }
+   }
+ 
+diff --git hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-app/src/test/java/org/apache/hadoop/mapreduce/v2/app/job/impl/TestTaskImpl.java hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-app/src/test/java/org/apache/hadoop/mapreduce/v2/app/job/impl/TestTaskImpl.java
+index 15290b2..14b5045 100644
+--- hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-app/src/test/java/org/apache/hadoop/mapreduce/v2/app/job/impl/TestTaskImpl.java
++++ hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-app/src/test/java/org/apache/hadoop/mapreduce/v2/app/job/impl/TestTaskImpl.java
+@@ -460,6 +460,22 @@ public class TestTaskImpl {
+   }
+   
+   @Test
++  public void testKillDuringTaskAttemptCommit() {
++    TaskId taskId = getNewTaskID();
++    scheduleTaskAttempt(taskId);
++    
++    launchTaskAttempt(getLastAttempt().getAttemptId());
++    updateLastAttemptState(TaskAttemptState.COMMIT_PENDING);
++    commitTaskAttempt(getLastAttempt().getAttemptId());
++
++    TaskAttemptId commitAttempt = getLastAttempt().getAttemptId();
++    updateLastAttemptState(TaskAttemptState.KILLED);
++    killRunningTaskAttempt(commitAttempt);
++
++    assertFalse(mockTask.canCommit(commitAttempt));
++  }
++
++  @Test
+   public void testFailureDuringTaskAttemptCommit() {
+     TaskId taskId = getNewTaskID();
+     scheduleTaskAttempt(taskId);

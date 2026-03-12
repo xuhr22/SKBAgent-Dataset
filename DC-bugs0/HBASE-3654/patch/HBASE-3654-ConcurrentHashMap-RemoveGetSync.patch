@@ -1,0 +1,26 @@
+Index: src/main/java/org/apache/hadoop/hbase/regionserver/HRegionServer.java
+===================================================================
+--- src/main/java/org/apache/hadoop/hbase/regionserver/HRegionServer.java	(revision 11855)
++++ src/main/java/org/apache/hadoop/hbase/regionserver/HRegionServer.java	(working copy)
+@@ -173,7 +173,7 @@
+    * encoded region name.  All access should be synchronized.
+    */
+   protected final Map<String, HRegion> onlineRegions =
+-    new HashMap<String, HRegion>();
++    new ConcurrentHashMap<String, HRegion>();
+ 
+   protected final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+   private final LinkedBlockingQueue<HMsg> outboundMsgs = new LinkedBlockingQueue<HMsg>();
+@@ -2229,11 +2229,7 @@
+ 
+   @Override
+   public HRegion getFromOnlineRegions(final String encodedRegionName) {
+-    HRegion r = null;
+-    synchronized (this.onlineRegions) {
+-      r = this.onlineRegions.get(encodedRegionName);
+-    }
+-    return r;
++    return this.onlineRegions.get(encodedRegionName);
+   }
+ 
+   /**

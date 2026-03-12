@@ -1,0 +1,110 @@
+Index: src/main/java/org/apache/hadoop/hbase/master/AssignmentManager.java
+===================================================================
+--- src/main/java/org/apache/hadoop/hbase/master/AssignmentManager.java	(revision 1347384)
++++ src/main/java/org/apache/hadoop/hbase/master/AssignmentManager.java	(working copy)
+@@ -576,6 +576,7 @@
+           // RPC is not yet sent
+           addToRITandCallClose(regionInfo, RegionState.State.OFFLINE, rt);
+         } else {
++        	//populate Region plan
+           regionsInTransition.put(encodedRegionName,
+             getRegionState(regionInfo, RegionState.State.PENDING_OPEN, rt));
+         }
+@@ -602,7 +603,14 @@
+           // it to a new RS. (HBASE-5882)
+           processOpeningState(regionInfo);
+           break;
+-        } 
++        } else if (sn != null && !isServerOnline(sn)) {
++          // to handle cases where offline node is created but sendRegionOpen
++          // RPC is not yet sent
++          addToRITandCallClose(regionInfo, RegionState.State.OFFLINE, rt);
++          break;
++        }
++        this.regionPlans.put(regionInfo.getEncodedName(), new RegionPlan(
++            regionInfo, null, sn));
+         regionsInTransition.put(encodedRegionName,
+           getRegionState(regionInfo, RegionState.State.OPENING, rt));
+         failoverProcessedRegions.put(encodedRegionName, regionInfo);
+@@ -624,6 +632,8 @@
+                 || regionInfo.isMetaRegion() || regionInfo.isRootRegion())) {
+           forceOffline(regionInfo, rt);
+         } else {
++          this.regionPlans.put(regionInfo.getEncodedName(), new RegionPlan(
++              regionInfo, null, sn));
+           new OpenedRegionHandler(master, this, regionInfo, sn, expectedVersion).process();
+         }
+         failoverProcessedRegions.put(encodedRegionName, regionInfo);
+Index: src/main/java/org/apache/hadoop/hbase/master/handler/ServerShutdownHandler.java
+===================================================================
+--- src/main/java/org/apache/hadoop/hbase/master/handler/ServerShutdownHandler.java	(revision 1347384)
++++ src/main/java/org/apache/hadoop/hbase/master/handler/ServerShutdownHandler.java	(working copy)
+@@ -228,6 +228,8 @@
+         return;
+       }
+ 
++      waitTillMasterInitialized();
++
+       // Clean out anything in regions in transition.  Being conservative and
+       // doing after log splitting.  Could do some states before -- OPENING?
+       // OFFLINE? -- and then others after like CLOSING that depend on log
+@@ -348,6 +350,30 @@
+   }
+ 
+   /**
++   * Used in testing also
++   * @throws IOException
++   */
++  protected void waitTillMasterInitialized() throws IOException {
++    int waitedTimeForMasterInitialized = 0;
++    while (!server.isStopped() && !services.isInitialized()) {
++      try {
++        if (waitedTimeForMasterInitialized == 0) {
++          LOG.info("Master is not initialized, waiting...");
++        }
++        Thread.sleep(100);
++        waitedTimeForMasterInitialized += 100;
++      } catch (InterruptedException e) {
++        Thread.currentThread().interrupt();
++        throw new IOException("Interrupted", e);
++      }
++    }
++    if (waitedTimeForMasterInitialized > 0) {
++      LOG.info("Recovery time calculation: waiting on master to be initialized took "
++          + waitedTimeForMasterInitialized + "ms");
++    }
++  }
++
++  /**
+Index: src/main/java/org/apache/hadoop/hbase/master/MasterServices.java
+===================================================================
+--- src/main/java/org/apache/hadoop/hbase/master/MasterServices.java	(revision 1347384)
++++ src/main/java/org/apache/hadoop/hbase/master/MasterServices.java	(working copy)
+@@ -80,4 +80,9 @@
+    * @return true if master enables ServerShutdownHandler;
+    */
+   public boolean isServerShutdownHandlerEnabled();
++
++  /**
++   * @return true if master is initialized
++   */
++  public boolean isInitialized();
+ }
+Index: src/test/java/org/apache/hadoop/hbase/master/TestAssignmentManager.java
+===================================================================
+--- src/test/java/org/apache/hadoop/hbase/master/TestAssignmentManager.java	(revision 1347384)
++++ src/test/java/org/apache/hadoop/hbase/master/TestAssignmentManager.java	(working copy)
+@@ -581,7 +581,12 @@
+     Mockito.when(services.getAssignmentManager()).thenReturn(am);
+     Mockito.when(services.getServerManager()).thenReturn(this.serverManager);
+     ServerShutdownHandler handler = new ServerShutdownHandler(this.server,
+-      services, deadServers, SERVERNAME_A, false);
++      services, deadServers, SERVERNAME_A, false){
++      @Override
++      protected void waitTillMasterInitialized() throws IOException {
++        return;
++      }
++    };
+     handler.process();
+     // The region in r will have been assigned.  It'll be up in zk as unassigned.
+   }

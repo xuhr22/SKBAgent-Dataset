@@ -1,0 +1,13 @@
+/.arc_jira_lib
+/.classpath
+/.externalToolBuilders
+/.project
+/.settings
+/build
+/.idea/
+/logs
+/target
+*.iml
+*.orig
+*~
+patchprocess/

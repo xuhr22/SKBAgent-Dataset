@@ -1,0 +1,14 @@
+diff --git src/hdfs/org/apache/hadoop/hdfs/server/datanode/DataBlockScanner.java src/hdfs/org/apache/hadoop/hdfs/server/datanode/DataBlockScanner.java
+index aaf118c..4b4889a 100644
+--- src/hdfs/org/apache/hadoop/hdfs/server/datanode/DataBlockScanner.java
++++ src/hdfs/org/apache/hadoop/hdfs/server/datanode/DataBlockScanner.java
+@@ -785,6 +785,9 @@ class DataBlockScanner implements Runnable {
+      * return true if append was successful.
+      */
+     synchronized boolean appendLine(String line) {
++      if (out == null) {
++        return false;
++      }
+       out.println();
+       out.print(line);
+       curNumLines += (curNumLines < 0) ? -1 : 1;

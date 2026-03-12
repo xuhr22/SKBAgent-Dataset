@@ -1,0 +1,40 @@
+<META http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Hadoop YARN 2.0.4-alpha Release Notes</title>
+<STYLE type="text/css">
+	H1 {font-family: sans-serif}
+	H2 {font-family: sans-serif; margin-left: 7mm}
+	TABLE {margin-left: 7mm}
+</STYLE>
+</head>
+<body>
+<h1>Hadoop YARN 2.0.4-alpha Release Notes</h1>
+These release notes include new developer and user-facing incompatibilities, features, and major improvements. 
+<a name="changes"/>
+<h2>Changes since Hadoop 2.0.3-alpha</h2>
+<ul>
+<li> <a href="https://issues.apache.org/jira/browse/YARN-470">YARN-470</a>.
+     Major bug reported by Hitesh Shah and fixed by Siddharth Seth (nodemanager)<br>
+     <b>Support a way to disable resource monitoring on the NodeManager</b><br>
+     <blockquote>Currently, the memory management monitor's check is disabled when the maxMem is set to -1. However, the maxMem is also sent to the RM when the NM registers with it ( to define the max limit of allocate-able resources ). 
+
+We need an explicit flag to disable monitoring to avoid the problems caused by the overloading of the max memory value.</blockquote></li>
+<li> <a href="https://issues.apache.org/jira/browse/YARN-449">YARN-449</a>.
+     Blocker bug reported by Siddharth Seth and fixed by  <br>
+     <b>HBase test failures when running against Hadoop 2</b><br>
+     <blockquote>Post YARN-429, unit tests for HBase continue to fail since the classpath for the MRAppMaster is not being set correctly.
+Reverting YARN-129 may fix this, but I'm not sure that's the correct solution. My guess is, as Alexandro pointed out in YARN-129, maven classloader magic is messing up java.class.path.</blockquote></li>
+<li> <a href="https://issues.apache.org/jira/browse/YARN-443">YARN-443</a>.
+     Major improvement reported by Thomas Graves and fixed by Thomas Graves (nodemanager)<br>
+     <b>allow OS scheduling priority of NM to be different than the containers it launches</b><br>
+     <blockquote>It would be nice if we could have the nodemanager run at a different OS scheduling priority than the containers so that you can still communicate with the nodemanager if the containers out of control.  
+
+On linux we could launch the nodemanager at a higher priority, but then all the containers it launches would also be at that higher priority, so we need a way for the container executor to launch them at a lower priority.
+
+I'm not sure how this applies to windows if at all.</blockquote></li>
+<li> <a href="https://issues.apache.org/jira/browse/YARN-429">YARN-429</a>.
+     Blocker bug reported by Siddharth Seth and fixed by Siddharth Seth (resourcemanager)<br>
+     <b>capacity-scheduler config missing from yarn-test artifact</b><br>
+     <blockquote>MiniYARNCluster and MiniMRCluster are unusable by downstream projects with the 2.0.3-alpha release, since the capacity-scheduler configuration is missing from the test artifact.
+hadoop-yarn-server-tests-3.0.0-SNAPSHOT-tests.jar should include the default capacity-scheduler configuration. Also, this doesn't need to be part of the default classpath - and should be moved out of the top level directory in the dist package.</blockquote></li>
+</ul>
+</body></html>

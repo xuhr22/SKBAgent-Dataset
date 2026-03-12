@@ -1,0 +1,105 @@
+diff --git hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-app/src/main/java/org/apache/hadoop/mapreduce/v2/app/job/impl/TaskImpl.java hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-app/src/main/java/org/apache/hadoop/mapreduce/v2/app/job/impl/TaskImpl.java
+index 830603b..141559c 100644
+--- hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-app/src/main/java/org/apache/hadoop/mapreduce/v2/app/job/impl/TaskImpl.java
++++ hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-app/src/main/java/org/apache/hadoop/mapreduce/v2/app/job/impl/TaskImpl.java
+@@ -203,7 +203,10 @@
+     .addTransition(
+         TaskStateInternal.SUCCEEDED, TaskStateInternal.SUCCEEDED,
+         EnumSet.of(TaskEventType.T_ADD_SPEC_ATTEMPT,
+-            TaskEventType.T_ATTEMPT_LAUNCHED))
++            TaskEventType.T_ATTEMPT_COMMIT_PENDING,
++            TaskEventType.T_ATTEMPT_LAUNCHED,
++            TaskEventType.T_ATTEMPT_SUCCEEDED,
++            TaskEventType.T_KILL))
+ 
+     // Transitions from FAILED state        
+     .addTransition(TaskStateInternal.FAILED, TaskStateInternal.FAILED,
+diff --git hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-app/src/test/java/org/apache/hadoop/mapreduce/v2/app/job/impl/TestTaskImpl.java hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-app/src/test/java/org/apache/hadoop/mapreduce/v2/app/job/impl/TestTaskImpl.java
+index da21dd7..87f93c6 100644
+--- hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-app/src/test/java/org/apache/hadoop/mapreduce/v2/app/job/impl/TestTaskImpl.java
++++ hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-app/src/test/java/org/apache/hadoop/mapreduce/v2/app/job/impl/TestTaskImpl.java
+@@ -418,6 +418,21 @@ public void testKillRunningTaskAttempt() {
+     killRunningTaskAttempt(getLastAttempt().getAttemptId());    
+   }
+ 
++  @Test
++  public void testKillSuccessfulTask() {
++    LOG.info("--- START: testKillSuccesfulTask ---");
++    mockTask = createMockTask(TaskType.MAP);
++    TaskId taskId = getNewTaskID();
++    scheduleTaskAttempt(taskId);
++    launchTaskAttempt(getLastAttempt().getAttemptId());
++    commitTaskAttempt(getLastAttempt().getAttemptId());
++    mockTask.handle(new TaskTAttemptEvent(getLastAttempt().getAttemptId(),
++        TaskEventType.T_ATTEMPT_SUCCEEDED));
++    assertTaskSucceededState();
++    mockTask.handle(new TaskEvent(taskId, TaskEventType.T_KILL));
++    assertTaskSucceededState();
++  }
++
+   @Test 
+   public void testTaskProgress() {
+     LOG.info("--- START: testTaskProgress ---");
+@@ -485,7 +500,8 @@ public void testFailureDuringTaskAttemptCommit() {
+     assertTaskSucceededState();
+   }
+   
+-  private void runSpeculativeTaskAttemptSucceedsEvenIfFirstFails(TaskEventType failEvent) {
++  private void runSpeculativeTaskAttemptSucceeds(
++      TaskEventType firstAttemptFinishEvent) {
+     TaskId taskId = getNewTaskID();
+     scheduleTaskAttempt(taskId);
+     launchTaskAttempt(getLastAttempt().getAttemptId());
+@@ -502,9 +518,9 @@ private void runSpeculativeTaskAttemptSucceedsEvenIfFirstFails(TaskEventType fai
+     // The task should now have succeeded
+     assertTaskSucceededState();
+     
+-    // Now fail the first task attempt, after the second has succeeded
++    // Now complete the first task attempt, after the second has succeeded
+     mockTask.handle(new TaskTAttemptEvent(taskAttempts.get(0).getAttemptId(), 
+-        failEvent));
++        firstAttemptFinishEvent));
+     
+     // The task should still be in the succeeded state
+     assertTaskSucceededState();
+@@ -513,25 +529,36 @@ private void runSpeculativeTaskAttemptSucceedsEvenIfFirstFails(TaskEventType fai
+   @Test
+   public void testMapSpeculativeTaskAttemptSucceedsEvenIfFirstFails() {
+     mockTask = createMockTask(TaskType.MAP);        
+-    runSpeculativeTaskAttemptSucceedsEvenIfFirstFails(TaskEventType.T_ATTEMPT_FAILED);
++    runSpeculativeTaskAttemptSucceeds(TaskEventType.T_ATTEMPT_FAILED);
+   }
+ 
+   @Test
+   public void testReduceSpeculativeTaskAttemptSucceedsEvenIfFirstFails() {
+     mockTask = createMockTask(TaskType.REDUCE);        
+-    runSpeculativeTaskAttemptSucceedsEvenIfFirstFails(TaskEventType.T_ATTEMPT_FAILED);
++    runSpeculativeTaskAttemptSucceeds(TaskEventType.T_ATTEMPT_FAILED);
+   }
+   
+   @Test
+   public void testMapSpeculativeTaskAttemptSucceedsEvenIfFirstIsKilled() {
+     mockTask = createMockTask(TaskType.MAP);        
+-    runSpeculativeTaskAttemptSucceedsEvenIfFirstFails(TaskEventType.T_ATTEMPT_KILLED);
++    runSpeculativeTaskAttemptSucceeds(TaskEventType.T_ATTEMPT_KILLED);
+   }
+ 
+   @Test
+   public void testReduceSpeculativeTaskAttemptSucceedsEvenIfFirstIsKilled() {
+     mockTask = createMockTask(TaskType.REDUCE);        
+-    runSpeculativeTaskAttemptSucceedsEvenIfFirstFails(TaskEventType.T_ATTEMPT_KILLED);
++    runSpeculativeTaskAttemptSucceeds(TaskEventType.T_ATTEMPT_KILLED);
+   }
+ 
++  @Test
++  public void testMultipleTaskAttemptsSucceed() {
++    mockTask = createMockTask(TaskType.MAP);
++    runSpeculativeTaskAttemptSucceeds(TaskEventType.T_ATTEMPT_SUCCEEDED);
++  }
++
++  @Test
++  public void testCommitAfterSucceeds() {
++    mockTask = createMockTask(TaskType.REDUCE);
++    runSpeculativeTaskAttemptSucceeds(TaskEventType.T_ATTEMPT_COMMIT_PENDING);
++  }
+ }

@@ -1,0 +1,35 @@
+Index: hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-app/src/main/java/org/apache/hadoop/mapreduce/v2/app/job/impl/JobImpl.java
+===================================================================
+--- hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-app/src/main/java/org/apache/hadoop/mapreduce/v2/app/job/impl/JobImpl.java	(revision 1498385)
++++ hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-app/src/main/java/org/apache/hadoop/mapreduce/v2/app/job/impl/JobImpl.java	(working copy)
+@@ -420,7 +420,9 @@
+               EnumSet.of(JobEventType.JOB_KILL, 
+                   JobEventType.JOB_UPDATED_NODES,
+                   JobEventType.JOB_TASK_ATTEMPT_FETCH_FAILURE,
+-                  JobEventType.JOB_AM_REBOOT))
++                  JobEventType.JOB_AM_REBOOT,
++                  JobEventType.JOB_TASK_ATTEMPT_COMPLETED,
++                  JobEventType.JOB_MAP_TASK_RESCHEDULED))
+ 
+           // Transitions from FAIL_ABORT state
+           .addTransition(JobStateInternal.FAIL_ABORT,
+Index: hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-app/src/test/java/org/apache/hadoop/mapreduce/v2/app/job/impl/TestJobImpl.java
+===================================================================
+--- hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-app/src/test/java/org/apache/hadoop/mapreduce/v2/app/job/impl/TestJobImpl.java	(revision 1498385)
++++ hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-app/src/test/java/org/apache/hadoop/mapreduce/v2/app/job/impl/TestJobImpl.java	(working copy)
+@@ -195,6 +195,15 @@
+     // let the committer complete and verify the job succeeds
+     syncBarrier.await();
+     assertJobState(job, JobStateInternal.SUCCEEDED);
++    
++    job.handle(new JobEvent(job.getID(),
++        JobEventType.JOB_TASK_ATTEMPT_COMPLETED));
++    assertJobState(job, JobStateInternal.SUCCEEDED);
++
++    job.handle(new JobEvent(job.getID(), 
++        JobEventType.JOB_MAP_TASK_RESCHEDULED));
++    assertJobState(job, JobStateInternal.SUCCEEDED);
++    
+     dispatcher.stop();
+     commitHandler.stop();
+   }

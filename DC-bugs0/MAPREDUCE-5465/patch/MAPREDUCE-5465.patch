@@ -1,0 +1,53 @@
+diff --git hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-app/src/main/java/org/apache/hadoop/mapreduce/v2/app/job/impl/TaskAttemptImpl.java hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-app/src/main/java/org/apache/hadoop/mapreduce/v2/app/job/impl/TaskAttemptImpl.java
+index 874577d..a876365 100644
+--- hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-app/src/main/java/org/apache/hadoop/mapreduce/v2/app/job/impl/TaskAttemptImpl.java
++++ hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-app/src/main/java/org/apache/hadoop/mapreduce/v2/app/job/impl/TaskAttemptImpl.java
+@@ -519,6 +519,8 @@ public TaskAttemptImpl(TaskId taskId, int i,
+     attemptId.setId(i);
+     this.taskAttemptListener = taskAttemptListener;
+     this.appContext = appContext;
++    CLEANUP_CONTAINER_TRANSITION.setTimeout(
++      conf.getLong(MRJobConfig.TASK_GRACE_TIME_FOR_EXIT, 250l));
+ 
+     // Initialize reportedStatus
+     reportedStatus = new TaskAttemptStatus();
+@@ -1843,6 +1845,11 @@ public void transition(TaskAttemptImpl taskAttempt,
+ 
+   private static class CleanupContainerTransition implements
+        SingleArcTransition<TaskAttemptImpl, TaskAttemptEvent> {
++    static long timeout = 0;
++    public void setTimeout(long time) {
++      timeout = time;
++    }
++
+     @SuppressWarnings("unchecked")
+     @Override
+     public void transition(TaskAttemptImpl taskAttempt, 
+@@ -1853,7 +1860,13 @@ public void transition(TaskAttemptImpl taskAttempt,
+           taskAttempt.attemptId, taskAttempt.jvmID);
+       taskAttempt.reportedStatus.progress = 1.0f;
+       taskAttempt.updateProgressSplits();
+-      //send the cleanup event to containerLauncher
++
++      //send the cleanup event to containerLauncher after waiting for some grace
++      //time to allow the task to finish its clean up
++      try{
++        Thread.sleep(timeout);
++      } catch (InterruptedException e) {}
++
+       taskAttempt.eventHandler.handle(new ContainerLauncherEvent(
+           taskAttempt.attemptId, 
+           taskAttempt.container.getId(), StringInterner
+diff --git hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-core/src/main/java/org/apache/hadoop/mapreduce/MRJobConfig.java hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-core/src/main/java/org/apache/hadoop/mapreduce/MRJobConfig.java
+index 0e85860..33d062f 100644
+--- hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-core/src/main/java/org/apache/hadoop/mapreduce/MRJobConfig.java
++++ hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-core/src/main/java/org/apache/hadoop/mapreduce/MRJobConfig.java
+@@ -185,6 +185,8 @@
+ 
+   public static final String TASK_USERLOG_LIMIT = "mapreduce.task.userlog.limit.kb";
+ 
++  public static final String TASK_GRACE_TIME_FOR_EXIT = "mapreduce.task.grace.time.for.exit";
++
+   public static final String MAP_SORT_SPILL_PERCENT = "mapreduce.map.sort.spill.percent";
+ 
+   public static final String MAP_INPUT_FILE = "mapreduce.map.input.file";

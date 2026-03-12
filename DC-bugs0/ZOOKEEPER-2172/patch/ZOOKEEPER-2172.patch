@@ -1,0 +1,15 @@
+diff --git zookeeper-server/src/main/java/org/apache/zookeeper/server/quorum/Leader.java src/java/main/org/apache/zookeeper/server/quorum/Leader.java
+index 2058904..410d174 100644
+--- zookeeper-server/src/main/java/org/apache/zookeeper/server/quorum/Leader.java
++++ zookeeper-server/src/main/java/org/apache/zookeeper/server/quorum/Leader.java
+@@ -178,9 +178,7 @@ void removeLearnerHandler(LearnerHandler peer) {
+         synchronized (forwardingFollowers) {
+             forwardingFollowers.remove(peer);
+         }
+-        synchronized (learners) {
+-            learners.remove(peer);
+-        }
++        learners.remove(peer);
+         synchronized (observingLearners) {
+             observingLearners.remove(peer);
+         }

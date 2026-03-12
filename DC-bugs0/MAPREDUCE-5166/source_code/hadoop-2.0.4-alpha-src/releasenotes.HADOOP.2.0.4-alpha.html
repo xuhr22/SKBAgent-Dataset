@@ -1,0 +1,56 @@
+<META http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Hadoop HADOOP 2.0.4-alpha Release Notes</title>
+<STYLE type="text/css">
+	H1 {font-family: sans-serif}
+	H2 {font-family: sans-serif; margin-left: 7mm}
+	TABLE {margin-left: 7mm}
+</STYLE>
+</head>
+<body>
+<h1>Hadoop HADOOP 2.0.4-alpha Release Notes</h1>
+These release notes include new developer and user-facing incompatibilities, features, and major improvements. 
+<a name="changes"/>
+<h2>Changes since Hadoop 2.0.3-alpha</h2>
+<ul>
+<li> <a href="https://issues.apache.org/jira/browse/HADOOP-9471">HADOOP-9471</a>.
+     Major bug reported by Alejandro Abdelnur and fixed by Alejandro Abdelnur (build)<br>
+     <b>hadoop-client wrongfully excludes jetty-util JAR, breaking webhdfs</b><br>
+     <blockquote></blockquote></li>
+<li> <a href="https://issues.apache.org/jira/browse/HADOOP-9467">HADOOP-9467</a>.
+     Major bug reported by Chris Nauroth and fixed by Chris Nauroth (metrics)<br>
+     <b>Metrics2 record filtering (.record.filter.include/exclude) does not filter by name</b><br>
+     <blockquote></blockquote></li>
+<li> <a href="https://issues.apache.org/jira/browse/HADOOP-9444">HADOOP-9444</a>.
+     Blocker bug reported by Konstantin Boudnik and fixed by Roman Shaposhnik (conf)<br>
+     <b>$var shell substitution in properties are not expanded in hadoop-policy.xml</b><br>
+     <blockquote></blockquote></li>
+<li> <a href="https://issues.apache.org/jira/browse/HADOOP-9406">HADOOP-9406</a>.
+     Major bug reported by Alejandro Abdelnur and fixed by Alejandro Abdelnur (build)<br>
+     <b>hadoop-client leaks dependency on JDK tools jar</b><br>
+     <blockquote></blockquote></li>
+<li> <a href="https://issues.apache.org/jira/browse/HADOOP-9405">HADOOP-9405</a>.
+     Minor bug reported by Andrew Wang and fixed by Andrew Wang (test , tools)<br>
+     <b>TestGridmixSummary#testExecutionSummarizer is broken</b><br>
+     <blockquote></blockquote></li>
+<li> <a href="https://issues.apache.org/jira/browse/HADOOP-9399">HADOOP-9399</a>.
+     Minor bug reported by Todd Lipcon and fixed by Konstantin Boudnik (build)<br>
+     <b>protoc maven plugin doesn't work on mvn 3.0.2</b><br>
+     <blockquote>Committed to 2.0.4-alpha branch</blockquote></li>
+<li> <a href="https://issues.apache.org/jira/browse/HADOOP-9379">HADOOP-9379</a>.
+     Trivial improvement reported by Arpit Gupta and fixed by Arpit Gupta <br>
+     <b>capture the ulimit info after printing the log to the console</b><br>
+     <blockquote></blockquote></li>
+<li> <a href="https://issues.apache.org/jira/browse/HADOOP-9374">HADOOP-9374</a>.
+     Major improvement reported by Daryn Sharp and fixed by Daryn Sharp (security)<br>
+     <b>Add tokens from -tokenCacheFile into UGI</b><br>
+     <blockquote></blockquote></li>
+<li> <a href="https://issues.apache.org/jira/browse/HADOOP-9301">HADOOP-9301</a>.
+     Blocker bug reported by Roman Shaposhnik and fixed by Alejandro Abdelnur (build)<br>
+     <b>hadoop client servlet/jsp/jetty/tomcat JARs creating conflicts in Oozie &amp; HttpFS</b><br>
+     <blockquote></blockquote></li>
+<li> <a href="https://issues.apache.org/jira/browse/HADOOP-9299">HADOOP-9299</a>.
+     Blocker bug reported by Roman Shaposhnik and fixed by Daryn Sharp (security)<br>
+     <b>kerberos name resolution is kicking in even when kerberos is not configured</b><br>
+     <blockquote></blockquote></li>
+</ul>
+</body></html>

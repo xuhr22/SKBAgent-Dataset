@@ -1,0 +1,12 @@
+Apache HBase
+Copyright 2007-2015 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+--
+This product incorporates portions of the 'Hadoop' project
+
+Copyright 2007-2009 The Apache Software Foundation
+
+Licensed under the Apache License v2.0

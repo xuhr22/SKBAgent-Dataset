@@ -1,0 +1,24 @@
+From f026c40b547cada264b3a9a493acc5e232fce439 Mon Sep 17 00:00:00 2001
+From: Sylvain Lebresne <sylvain@datastax.com>
+Date: Fri, 13 Sep 2013 13:50:07 +0200
+Subject: [PATCH 2/2] Populate commitsByReplica in PrepareCallback
+
+---
+ .../cassandra/service/paxos/PrepareCallback.java   |    1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/java/org/apache/cassandra/service/paxos/PrepareCallback.java b/src/java/org/apache/cassandra/service/paxos/PrepareCallback.java
+index f59fc72..f27582c 100644
+--- a/src/java/org/apache/cassandra/service/paxos/PrepareCallback.java
++++ b/src/java/org/apache/cassandra/service/paxos/PrepareCallback.java
+@@ -73,6 +73,7 @@ public class PrepareCallback extends AbstractPaxosCallback<PrepareResponse>
+             return;
+         }
+ 
++        commitsByReplica.put(message.from, response.mostRecentCommit);
+         if (response.mostRecentCommit.isAfter(mostRecentCommit))
+             mostRecentCommit = response.mostRecentCommit;
+ 
+-- 
+1.7.9.5
+
