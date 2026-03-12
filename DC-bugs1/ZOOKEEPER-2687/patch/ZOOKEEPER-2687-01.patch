@@ -1,0 +1,15 @@
+diff --git zookeeper-server/src/main/java/org/apache/zookeeper/server/quorum/Leader.java src/java/main/org/apache/zookeeper/server/quorum/Leader.java
+index 7663d71..cc73124 100644
+--- zookeeper-server/src/main/java/org/apache/zookeeper/server/quorum/Leader.java
++++ zookeeper-server/src/main/java/org/apache/zookeeper/server/quorum/Leader.java
+@@ -590,8 +590,8 @@ void lead() throws IOException, InterruptedException {
+ 
+                     // check leader running status
+                     if (!this.isRunning()) {
+-                        shutdown("Unexpected internal error");
+-                        return;
++                        shutdownMessage = "Unexpected internal error";
++                        break;
+                     }
+ 
+                     if (!tickSkip && !syncedAckSet.hasAllQuorums()) {

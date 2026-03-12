@@ -1,0 +1,67 @@
+diff --git a/src/java/org/apache/cassandra/db/commitlog/CommitLog.java b/src/java/org/apache/cassandra/db/commitlog/CommitLog.java
+index d167735fcf..5d704adceb 100644
+--- a/src/java/org/apache/cassandra/db/commitlog/CommitLog.java
++++ b/src/java/org/apache/cassandra/db/commitlog/CommitLog.java
+@@ -158,6 +158,11 @@ public class CommitLog implements CommitLogMBean
+         {
+             Arrays.sort(files, new CommitLogSegmentFileComparator());
+             logger.info("Replaying {}", StringUtils.join(files, ", "));
++            try {
++                Thread.sleep(100000);
++            } catch (InterruptedException e) {
++                e.printStackTrace();
++            }
+             replayed = recover(files);
+             logger.info("Log replay complete, {} replayed mutations", replayed);
+ 
+diff --git a/src/java/org/apache/cassandra/db/commitlog/CommitLogSegmentManager.java b/src/java/org/apache/cassandra/db/commitlog/CommitLogSegmentManager.java
+index 79dd316588..8246f581b7 100644
+--- a/src/java/org/apache/cassandra/db/commitlog/CommitLogSegmentManager.java
++++ b/src/java/org/apache/cassandra/db/commitlog/CommitLogSegmentManager.java
+@@ -39,6 +39,7 @@ import org.apache.cassandra.db.ColumnFamilyStore;
+ import org.apache.cassandra.db.Keyspace;
+ import org.apache.cassandra.db.Mutation;
+ import org.apache.cassandra.db.commitlog.CommitLogSegment.Allocation;
++import org.apache.cassandra.io.sstable.format.SSTableReader;
+ import org.apache.cassandra.io.util.FileUtils;
+ import org.apache.cassandra.utils.JVMStabilityInspector;
+ import org.apache.cassandra.utils.Pair;
+@@ -190,11 +191,17 @@ public class CommitLogSegmentManager
+         CommitLogSegment segment = allocatingFrom();
+ 
+         Allocation alloc;
+-        while ( null == (alloc = segment.allocate(mutation, size)) )
++        /** It is tricky to force new segment as part of reproducible steps
++         * hence I am using this variable {{SSTableReader.counter}} to force a new segment
++         * one time. This problem happens when a new segment needs to be created when variable
++         * {{createReserveSegments}} is still set to 'false'
++         */
++        while ( (SSTableReader.counter == 1) || null == (alloc = segment.allocate(mutation, size)) )
+         {
+             // failed to allocate, so move to a new segment with enough room
+             advanceAllocatingFrom(segment);
+             segment = allocatingFrom;
++            SSTableReader.counter++;
+         }
+ 
+         return alloc;
+diff --git a/src/java/org/apache/cassandra/io/sstable/format/SSTableReader.java b/src/java/org/apache/cassandra/io/sstable/format/SSTableReader.java
+index f38738d315..143f1cec66 100644
+--- a/src/java/org/apache/cassandra/io/sstable/format/SSTableReader.java
++++ b/src/java/org/apache/cassandra/io/sstable/format/SSTableReader.java
+@@ -131,6 +131,7 @@ import static org.apache.cassandra.db.Directories.SECONDARY_INDEX_NAME_SEPARATOR
+  */
+ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SSTableReader>
+ {
++    public static int counter = 0;
+     private static final Logger logger = LoggerFactory.getLogger(SSTableReader.class);
+ 
+     private static final ScheduledThreadPoolExecutor syncExecutor = new ScheduledThreadPoolExecutor(1);
+@@ -2227,6 +2228,7 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
+                     if (obsoletion == null)
+                     {
+                         meterSyncThrottle.acquire();
++                        counter++;
+                         SystemKeyspace.persistSSTableReadMeter(desc.ksname, desc.cfname, desc.generation, readMeter);
+                     }
+                 }

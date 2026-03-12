@@ -1,0 +1,89 @@
+From aa345179f81aa90872994844735e3bbf3889cb54 Mon Sep 17 00:00:00 2001
+From: Chris Moos <chris@chrismoos.com>
+Date: Thu, 6 Aug 2015 14:40:09 -0700
+Subject: [PATCH] Add proper cleanup of CompressedInputStream. CASSANDRA-10012
+
+Ensures that the Thread in CompressedInputStream is stopped if
+a non-fatal error occurs during streaming (and retry ensues).
+---
+ .../streaming/compress/CompressedInputStream.java  | 23 +++++++++++++++++++---
+ .../streaming/compress/CompressedStreamReader.java |  3 +++
+ 2 files changed, 23 insertions(+), 3 deletions(-)
+
+diff --git a/src/java/org/apache/cassandra/streaming/compress/CompressedInputStream.java b/src/java/org/apache/cassandra/streaming/compress/CompressedInputStream.java
+index 872afcd..47c40a1 100644
+--- a/src/java/org/apache/cassandra/streaming/compress/CompressedInputStream.java
++++ b/src/java/org/apache/cassandra/streaming/compress/CompressedInputStream.java
+@@ -61,6 +61,8 @@ public class CompressedInputStream extends InputStream
+ 
+     private long totalCompressedBytesRead;
+ 
++    private Thread readerThread;
++
+     /**
+      * @param source Input source to read compressed data from
+      * @param info Compression info
+@@ -73,7 +75,8 @@ public class CompressedInputStream extends InputStream
+         // buffer is limited to store up to 1024 chunks
+         this.dataBuffer = new ArrayBlockingQueue<byte[]>(Math.min(info.chunks.length, 1024));
+ 
+-        new Thread(new Reader(source, info, dataBuffer)).start();
++        readerThread = new Thread(new Reader(source, info, dataBuffer));
++        readerThread.start();
+     }
+ 
+     public int read() throws IOException
+@@ -132,7 +135,7 @@ public class CompressedInputStream extends InputStream
+         return totalCompressedBytesRead;
+     }
+ 
+-    static class Reader extends WrappedRunnable
++    class Reader extends WrappedRunnable
+     {
+         private final InputStream source;
+         private final Iterator<CompressionMetadata.Chunk> chunks;
+@@ -148,7 +151,7 @@ public class CompressedInputStream extends InputStream
+         protected void runMayThrow() throws Exception
+         {
+             byte[] compressedWithCRC;
+-            while (chunks.hasNext())
++            while (!Thread.currentThread().isInterrupted() && chunks.hasNext())
+             {
+                 CompressionMetadata.Chunk chunk = chunks.next();
+ 
+@@ -168,6 +171,20 @@ public class CompressedInputStream extends InputStream
+                 }
+                 dataBuffer.put(compressedWithCRC);
+             }
++            synchronized(CompressedInputStream.this) {
++                readerThread = null;
++            }
+         }
+     }
++
++    @Override
++    public void close() throws IOException {
++        synchronized(this) {
++            if(readerThread != null) {
++                readerThread.interrupt();
++                readerThread = null;
++            }
++        }
++    }
++
+ }
+diff --git a/src/java/org/apache/cassandra/streaming/compress/CompressedStreamReader.java b/src/java/org/apache/cassandra/streaming/compress/CompressedStreamReader.java
+index 1936a94..34c8bdc 100644
+--- a/src/java/org/apache/cassandra/streaming/compress/CompressedStreamReader.java
++++ b/src/java/org/apache/cassandra/streaming/compress/CompressedStreamReader.java
+@@ -109,6 +109,9 @@ public class CompressedStreamReader extends StreamReader
+             else
+                 throw Throwables.propagate(e);
+         }
++        finally {
++            cis.close();
++        }
+     }
+ 
+     @Override
+

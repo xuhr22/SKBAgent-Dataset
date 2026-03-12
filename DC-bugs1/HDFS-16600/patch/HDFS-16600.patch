@@ -1,0 +1,61 @@
+From f08e25d23aa96705511da6358769b81a4a711080 Mon Sep 17 00:00:00 2001
+From: "zengqiang.xu" <zengqiang.xu@shopee.com>
+Date: Sat, 28 May 2022 11:53:24 +0800
+Subject: [PATCH] HDFS-16600. Fix deadlock on DataNode side.
+
+---
+ .../fsdataset/impl/FsDatasetImpl.java         | 34 +++++++++++--------
+ 1 file changed, 19 insertions(+), 15 deletions(-)
+
+diff --git a/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/server/datanode/fsdataset/impl/FsDatasetImpl.java b/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/server/datanode/fsdataset/impl/FsDatasetImpl.java
+index df24f9890db04..c8b8d865711f6 100644
+--- a/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/server/datanode/fsdataset/impl/FsDatasetImpl.java
++++ b/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/server/datanode/fsdataset/impl/FsDatasetImpl.java
+@@ -3522,28 +3522,32 @@ public void evictBlocks(long bytesNeeded) throws IOException {
+ 
+         ReplicaInfo replicaInfo, newReplicaInfo;
+         final String bpid = replicaState.getBlockPoolId();
++        final FsVolumeImpl lazyPersistVolume = replicaState.getLazyPersistVolume();
+ 
+-        try (AutoCloseableLock lock = lockManager.writeLock(LockLevel.BLOCK_POOl, bpid)) {
++        try (AutoCloseableLock lock = lockManager.readLock(LockLevel.BLOCK_POOl, bpid)) {
+           replicaInfo = getReplicaInfo(replicaState.getBlockPoolId(),
+                                        replicaState.getBlockId());
+           Preconditions.checkState(replicaInfo.getVolume().isTransientStorage());
+           ramDiskReplicaTracker.discardReplica(replicaState.getBlockPoolId(),
+               replicaState.getBlockId(), false);
+ 
+-          // Move the replica from lazyPersist/ to finalized/ on
+-          // the target volume
+-          newReplicaInfo =
+-              replicaState.getLazyPersistVolume().activateSavedReplica(bpid,
+-                  replicaInfo, replicaState);
+-          // Update the volumeMap entry.
+-          volumeMap.add(bpid, newReplicaInfo);
+-
+-          // Update metrics
+-          datanode.getMetrics().incrRamDiskBlocksEvicted();
+-          datanode.getMetrics().addRamDiskBlocksEvictionWindowMs(
+-              Time.monotonicNow() - replicaState.getCreationTime());
+-          if (replicaState.getNumReads() == 0) {
+-            datanode.getMetrics().incrRamDiskBlocksEvictedWithoutRead();
++          try (AutoCloseableLock lock1 = lockManager.writeLock(LockLevel.VOLUME,
++              bpid, lazyPersistVolume.getStorageID())) {
++            // Move the replica from lazyPersist/ to finalized/ on
++            // the target volume
++            newReplicaInfo =
++                replicaState.getLazyPersistVolume().activateSavedReplica(bpid,
++                    replicaInfo, replicaState);
++            // Update the volumeMap entry.
++            volumeMap.add(bpid, newReplicaInfo);
++
++            // Update metrics
++            datanode.getMetrics().incrRamDiskBlocksEvicted();
++            datanode.getMetrics().addRamDiskBlocksEvictionWindowMs(
++                Time.monotonicNow() - replicaState.getCreationTime());
++            if (replicaState.getNumReads() == 0) {
++              datanode.getMetrics().incrRamDiskBlocksEvictedWithoutRead();
++            }
+           }
+ 
+           // Delete the block+meta files from RAM disk and release locked

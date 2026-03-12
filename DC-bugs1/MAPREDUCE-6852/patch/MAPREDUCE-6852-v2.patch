@@ -1,0 +1,13 @@
+diff --git hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-core/src/main/java/org/apache/hadoop/mapreduce/Job.java hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-core/src/main/java/org/apache/hadoop/mapreduce/Job.java
+index c03f07c..e77ac5f 100644
+--- hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-core/src/main/java/org/apache/hadoop/mapreduce/Job.java
++++ hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-core/src/main/java/org/apache/hadoop/mapreduce/Job.java
+@@ -320,7 +320,7 @@ synchronized void updateStatus() throws IOException {
+       this.status = ugi.doAs(new PrivilegedExceptionAction<JobStatus>() {
+         @Override
+         public JobStatus run() throws IOException, InterruptedException {
+-          return cluster.getClient().getJobStatus(status.getJobID());
++          return cluster.getClient().getJobStatus(getJobID());
+         }
+       });
+     }

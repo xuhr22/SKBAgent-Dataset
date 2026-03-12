@@ -1,0 +1,133 @@
+diff --git a/hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-hs/src/main/java/org/apache/hadoop/mapreduce/v2/hs/CachedHistoryStorage.java b/hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-hs/src/main/java/org/apache/hadoop/mapreduce/v2/hs/CachedHistoryStorage.java
+index b001ae49b37..69f483166e6 100644
+--- a/hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-hs/src/main/java/org/apache/hadoop/mapreduce/v2/hs/CachedHistoryStorage.java
++++ b/hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-hs/src/main/java/org/apache/hadoop/mapreduce/v2/hs/CachedHistoryStorage.java
+@@ -173,9 +173,14 @@ private Job loadJob(JobId jobId) throws RuntimeException, IOException {
+     HistoryFileInfo fileInfo;
+ 
+     fileInfo = hsManager.getFileInfo(jobId);
++
+     if (fileInfo == null) {
+       throw new HSFileRuntimeException("Unable to find job " + jobId);
+-    } else if (fileInfo.isDeleted()) {
++    }
++
++    fileInfo.waitUntilMoved();
++
++    if (fileInfo.isDeleted()) {
+       throw new HSFileRuntimeException("Cannot load deleted job " + jobId);
+     } else {
+       return fileInfo.loadJob();
+@@ -211,6 +216,7 @@ public Job getFullJob(JobId jobId) {
+       for (HistoryFileInfo mi : hsManager.getAllFileInfo()) {
+         if (mi != null) {
+           JobId id = mi.getJobId();
++          mi.waitUntilMoved();
+           result.put(id, new PartialJob(mi.getJobIndexInfo(), id));
+         }
+       }
+diff --git a/hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-hs/src/main/java/org/apache/hadoop/mapreduce/v2/hs/HistoryFileManager.java b/hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-hs/src/main/java/org/apache/hadoop/mapreduce/v2/hs/HistoryFileManager.java
+index b418db7502d..a07ca26c1cd 100644
+--- a/hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-hs/src/main/java/org/apache/hadoop/mapreduce/v2/hs/HistoryFileManager.java
++++ b/hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-hs/src/main/java/org/apache/hadoop/mapreduce/v2/hs/HistoryFileManager.java
+@@ -452,6 +452,8 @@ synchronized void moveToDone() throws IOException {
+       } catch (Throwable t) {
+         LOG.error("Error while trying to move a job to done", t);
+         this.state = HistoryInfoState.MOVE_FAILED;
++      } finally {
++        notifyAll();
+       }
+     }
+ 
+@@ -485,12 +487,16 @@ public synchronized Path getHistoryFile() {
+     }
+     
+     protected synchronized void delete() throws IOException {
+-      if (LOG.isDebugEnabled()) {
+-        LOG.debug("deleting " + historyFile + " and " + confFile);
++      try {
++        if (LOG.isDebugEnabled()) {
++          LOG.debug("deleting " + historyFile + " and " + confFile);
++        }
++        state = HistoryInfoState.DELETED;
++        doneDirFc.delete(doneDirFc.makeQualified(historyFile), false);
++        doneDirFc.delete(doneDirFc.makeQualified(confFile), false);
++      } finally {
++        notifyAll();
+       }
+-      state = HistoryInfoState.DELETED;
+-      doneDirFc.delete(doneDirFc.makeQualified(historyFile), false);
+-      doneDirFc.delete(doneDirFc.makeQualified(confFile), false);
+     }
+ 
+     public JobIndexInfo getJobIndexInfo() {
+@@ -517,6 +523,17 @@ private boolean isOversized() {
+           jobIndexInfo.getNumMaps();
+       return (maxTasksForLoadedJob > 0) && (totalTasks > maxTasksForLoadedJob);
+     }
++
++    public synchronized void waitUntilMoved() {
++      while (isMovePending() && !didMoveFail()) {
++        try {
++          wait();
++        } catch (InterruptedException e) {
++          LOG.warn("Waiting has been interrupted");
++          throw new RuntimeException(e);
++        }
++      }
++    }
+   }
+ 
+   private SerialNumberIndex serialNumberIndex = null;
+@@ -956,6 +973,7 @@ private void scanIntermediateDirectory(final Path absPath) throws IOException {
+           if (LOG.isDebugEnabled()) {
+             LOG.debug("Scheduling move to done of " +found);
+           }
++
+           moveToDoneExecutor.execute(new Runnable() {
+             @Override
+             public void run() {
+@@ -1193,5 +1211,5 @@ protected boolean deleteDir(FileStatus serialDir)
+   @VisibleForTesting
+   void setMaxHistoryAge(long newValue){
+     maxHistoryAge=newValue;
+-  } 
++  }
+ }
+diff --git a/hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-hs/src/test/java/org/apache/hadoop/mapreduce/v2/hs/TestJobHistory.java b/hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-hs/src/test/java/org/apache/hadoop/mapreduce/v2/hs/TestJobHistory.java
+index 936c77221bb..9f36477bd3b 100644
+--- a/hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-hs/src/test/java/org/apache/hadoop/mapreduce/v2/hs/TestJobHistory.java
++++ b/hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-hs/src/test/java/org/apache/hadoop/mapreduce/v2/hs/TestJobHistory.java
+@@ -445,6 +445,32 @@ public void testRefreshJobRetentionSettings() throws IOException,
+     verify(fileInfo, timeout(20000).times(2)).delete();
+   }
+ 
++  @Test
++  public void testCachedStorageWaitsForFileMove() throws IOException {
++    HistoryFileManager historyManager = mock(HistoryFileManager.class);
++    jobHistory = spy(new JobHistory());
++    doReturn(historyManager).when(jobHistory).createHistoryFileManager();
++
++    Configuration conf = new Configuration();
++    jobHistory.init(conf);
++    jobHistory.start();
++
++    CachedHistoryStorage storage = spy((CachedHistoryStorage) jobHistory
++        .getHistoryStorage());
++
++    Job job  = mock(Job.class);
++    JobId jobId  = mock(JobId.class);
++    when(job.getID()).thenReturn(jobId);
++    when(job.getTotalMaps()).thenReturn(10);
++    when(job.getTotalReduces()).thenReturn(2);
++    HistoryFileInfo fileInfo = mock(HistoryFileInfo.class);
++    when(historyManager.getFileInfo(eq(jobId))).thenReturn(fileInfo);
++    when(fileInfo.loadJob()).thenReturn(job);
++
++    storage.getFullJob(jobId);
++    verify(fileInfo).waitUntilMoved();
++  }
++
+   @Test
+   public void testRefreshLoadedJobCacheUnSupportedOperation() {
+     jobHistory = spy(new JobHistory());

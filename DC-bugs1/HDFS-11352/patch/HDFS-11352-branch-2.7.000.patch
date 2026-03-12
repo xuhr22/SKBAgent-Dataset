@@ -1,0 +1,13 @@
+diff --git a/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/server/namenode/FSNamesystem.java b/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/server/namenode/FSNamesystem.java
+index c7f8508..96bcfef 100644
+--- a/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/server/namenode/FSNamesystem.java
++++ b/hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/server/namenode/FSNamesystem.java
+@@ -4768,7 +4768,7 @@ public int getExpiredHeartbeats() {
+   @Metric({"TransactionsSinceLastCheckpoint",
+       "Number of transactions since last checkpoint"})
+   public long getTransactionsSinceLastCheckpoint() {
+-    return getEditLog().getLastWrittenTxId() -
++    return getEditLog().getLastWrittenTxIdWithoutLock() -
+         getFSImage().getStorage().getMostRecentCheckpointTxId();
+   }
+   
